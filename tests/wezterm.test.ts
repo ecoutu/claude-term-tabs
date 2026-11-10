@@ -42,16 +42,22 @@ test('openPane runs through a login shell and keeps the pane open afterwards', (
 
 const wpane: Pane = { id: '22', tty: '/dev/ttys004', title: '', windowId: '3', windowIndex: 1, tabIndex: 2 }
 
-test('sendText types without bracketed paste and submits', () => {
+test('sendText pastes the text, then submits with a bare carriage return', () => {
   const { exec, calls } = recorder()
-  weztermAdapter(exec, '/bin/zsh').sendText(wpane, 'hi "there"')
-  assert.deepEqual(calls[0].args, ['cli', 'send-text', '--pane-id', '22', '--no-paste', 'hi "there"\r'])
+  weztermAdapter(exec, '/bin/zsh').sendText(wpane, 'hi "there"\nline 2')
+  assert.deepEqual(calls[0].args, ['cli', 'send-text', '--pane-id', '22', 'hi "there"\nline 2'])
+  assert.deepEqual(calls[1].args, ['cli', 'send-text', '--pane-id', '22', '--no-paste', '\r'])
 })
 
 test('closePane kills the pane', () => {
   const { exec, calls } = recorder()
   weztermAdapter(exec, '/bin/zsh').closePane(wpane)
   assert.deepEqual(calls[0].args, ['cli', 'kill-pane', '--pane-id', '22'])
+})
+
+test('openPane returns the spawned pane id', () => {
+  const { exec } = recorder('41\n')
+  assert.equal(weztermAdapter(exec, '/bin/zsh').openPane('/x', 'c'), '41')
 })
 
 test('openPane with newWindow spawns a new window', () => {

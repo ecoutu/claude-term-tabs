@@ -41,7 +41,9 @@ const sessionScript = (onFound: string): string => `function run (argv) {
 }`
 
 const FOCUS_SCRIPT = sessionScript('s.select(); t.select(); w.select(); app.activate()')
-const SEND_SCRIPT = sessionScript('s.write({ text: argv[1] })')
+const SEND_SCRIPT = sessionScript('s.write({ text: argv[1], newline: false }); delay(0.3); s.write({ text: "" })')
+const PASTE_START = '\x1b[200~'
+const PASTE_END = '\x1b[201~'
 const CLOSE_SCRIPT = sessionScript('s.close()')
 
 const OPEN_SCRIPT = `function run (argv) {
@@ -53,7 +55,7 @@ const OPEN_SCRIPT = `function run (argv) {
     : app.currentWindow().createTabWithDefaultProfile().currentSession()
   session.write({ text: 'cd ' + quoted + ' && ' + argv[1] })
   app.activate()
-  return 'ok'
+  return session.id()
 }`
 
 const AUTOMATION_HINT = 'iTerm2 refused automation. Allow your terminal to control iTerm2 in System Settings > Privacy & Security > Automation.'
@@ -70,8 +72,8 @@ export function iterm2Adapter (exec: Exec): TerminalAdapter {
     name: 'iterm2',
     listPanes: () => JSON.parse(jxa(LIST_SCRIPT)) as Pane[],
     focus: (pane) => { jxa(FOCUS_SCRIPT, [pane.id]) },
-    sendText: (pane, text) => { jxa(SEND_SCRIPT, [pane.id, text]) },
+    sendText: (pane, text) => { jxa(SEND_SCRIPT, [pane.id, `${PASTE_START}${text}${PASTE_END}`]) },
     closePane: (pane) => { jxa(CLOSE_SCRIPT, [pane.id]) },
-    openPane: (cwd, command, opts) => { jxa(OPEN_SCRIPT, [cwd, command, opts?.newWindow === true ? 'new-window' : 'tab']) }
+    openPane: (cwd, command, opts) => jxa(OPEN_SCRIPT, [cwd, command, opts?.newWindow === true ? 'new-window' : 'tab']).trim()
   }
 }

@@ -48,11 +48,11 @@ test('other osascript failures throw with stderr', () => {
 
 const pane: Pane = { id: 'SID-1', tty: '/dev/ttys004', title: 't', windowId: '1', windowIndex: 1, tabIndex: 1 }
 
-test('sendText passes the session id and text verbatim as arguments', () => {
+test('sendText pastes the text as one bracketed paste and passes it as an argument', () => {
   const { exec, calls } = recorder()
   const text = 'Pause "now"\nthen $HOME'
   iterm2Adapter(exec).sendText(pane, text)
-  assert.deepEqual(calls[0].args.slice(-2), ['SID-1', text])
+  assert.deepEqual(calls[0].args.slice(-2), ['SID-1', `\x1b[200~${text}\x1b[201~`])
   assert.ok(!calls[0].args[3].includes('Pause'))
 })
 
@@ -62,8 +62,13 @@ test('closePane passes the session id', () => {
   assert.equal(calls[0].args[calls[0].args.length - 1], 'SID-1')
 })
 
+test('openPane returns the new session id', () => {
+  const { exec } = recorder('NEW-ID\n')
+  assert.equal(iterm2Adapter(exec).openPane('/x', 'cmd'), 'NEW-ID')
+})
+
 test('openPane with newWindow adds a new-window argument', () => {
-  const { exec, calls } = recorder()
+  const { exec, calls } = recorder('ID')
   iterm2Adapter(exec).openPane('/x', 'cmd', { newWindow: true })
   assert.deepEqual(calls[0].args.slice(-3), ['/x', 'cmd', 'new-window'])
   iterm2Adapter(exec).openPane('/x', 'cmd')

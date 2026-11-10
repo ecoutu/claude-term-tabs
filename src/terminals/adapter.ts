@@ -9,7 +9,8 @@ export interface TerminalAdapter {
   focus(pane: Pane): void
   sendText(pane: Pane, text: string): void
   closePane(pane: Pane): void
-  openPane(cwd: string, command: string, opts?: { newWindow?: boolean }): void
+  /** Opens a pane running `command` in `cwd`; returns the new pane id. */
+  openPane(cwd: string, command: string, opts?: { newWindow?: boolean }): string
 }
 
 const FACTORIES: Readonly<Record<TerminalAdapter['name'], (exec: Exec) => TerminalAdapter>> = {

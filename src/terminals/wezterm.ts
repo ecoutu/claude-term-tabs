@@ -14,10 +14,13 @@ export function weztermAdapter (exec: Exec, shell: string = process.env.SHELL ??
     name: 'wezterm',
     listPanes: () => toPanes(JSON.parse(cli(['list', '--format', 'json'])) as WeztermPane[]),
     focus: (pane) => { cli(['activate-pane', '--pane-id', pane.id]) },
-    sendText: (pane, text) => { cli(['send-text', '--pane-id', pane.id, '--no-paste', `${text}\r`]) },
+    sendText: (pane, text) => {
+      cli(['send-text', '--pane-id', pane.id, text])
+      cli(['send-text', '--pane-id', pane.id, '--no-paste', '\r'])
+    },
     closePane: (pane) => { cli(['kill-pane', '--pane-id', pane.id]) },
     openPane: (cwd, command, opts) => {
-      cli(['spawn', ...(opts?.newWindow === true ? ['--new-window'] : []), '--cwd', cwd, '--', shell, '-lc', `${command}; exec ${shell} -l`])
+      return cli(['spawn', ...(opts?.newWindow === true ? ['--new-window'] : []), '--cwd', cwd, '--', shell, '-lc', `${command}; exec ${shell} -l`]).trim()
     }
   }
 }
