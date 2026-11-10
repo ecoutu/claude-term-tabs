@@ -1,0 +1,11 @@
+Pausing for a machine restart. Stop at the nearest safe point: start nothing new, and do not push, merge, apply, post or transition anything that was not already mid-flight. Leave no file half-edited; do not commit unless that was already the plan. Background jobs, Monitors, /loop wakeups and subagents will die with the restart.
+
+Then reply with a message headed HANDOFF (under 20 lines):
+- Goal: what this session is for (ticket/PR refs)
+- Done: what is finished, with PR numbers, commits, ticket states
+- In flight: branch, worktree path, uncommitted changes, anything half-done
+- Lost on restart: background watches/monitors/loops/agents and how to restart them
+- Next step: the exact next action
+- Open questions: anything you need from me
+
+Then stop and wait.

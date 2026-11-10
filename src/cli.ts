@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process'
-import { closeSync, openSync, readFileSync, readSync, writeSync } from 'node:fs'
+import { closeSync, openSync, readSync, writeSync } from 'node:fs'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import { DigestCache } from './cache.ts'
+import { loadConfig, type Config } from './config.ts'
 import { realExec } from './exec.ts'
 import { dirExists as realDirExists, listClosedSessions, resumeCommand } from './history.ts'
 import { collectLiveSessions } from './live.ts'
@@ -55,8 +56,6 @@ export interface Deps {
   resolveAdapter: (override?: string) => TerminalAdapter | undefined
   pick: (cands: Candidate[], summaries: Map<string, string>) => Candidate | undefined
 }
-
-interface Config { resumeCommand?: string }
 
 interface Context {
   opts: Options
@@ -244,25 +243,6 @@ function listPanesOrWarn (adapter: TerminalAdapter | undefined, deps: Deps): Pan
   } catch (err) {
     deps.stderr(`claude-tabs: ${(err as Error).message}`)
     return []
-  }
-}
-
-function loadConfig (path: string): Config {
-  let raw: string
-  try {
-    raw = readFileSync(path, 'utf8')
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {}
-    throw new Error(`cannot read config ${path}: ${(err as Error).message}`)
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (typeof parsed !== 'object' || parsed === null) throw new Error('not an object')
-    const { resumeCommand } = parsed as Config
-    if (resumeCommand !== undefined && typeof resumeCommand !== 'string') throw new Error('resumeCommand must be a string')
-    return { resumeCommand }
-  } catch (err) {
-    throw new Error(`invalid config ${path}: ${(err as Error).message}`)
   }
 }
 

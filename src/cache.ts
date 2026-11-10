@@ -1,6 +1,5 @@
-import { randomBytes } from 'node:crypto'
-import { chmodSync, closeSync, constants, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { writeOwnerOnly } from './fsutil.ts'
 import type { Digest } from './types.ts'
 
 const CACHE_VERSION = 1
@@ -76,18 +75,8 @@ export class DigestCache {
   /** Write the cache atomically when anything changed. */
   save (): void {
     if (!this.dirty && existsSync(this.file)) return
-    const dir = dirname(this.file)
-    mkdirSync(dir, { recursive: true, mode: 0o700 })
-    chmodSync(dir, 0o700)
     const body: CacheFile = { version: CACHE_VERSION, entries: Object.fromEntries(this.entries) }
-    const tmp = `${this.file}.${randomBytes(8).toString('hex')}.tmp`
-    const fd = openSync(tmp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600)
-    try {
-      writeFileSync(fd, JSON.stringify(body))
-    } finally {
-      closeSync(fd)
-    }
-    renameSync(tmp, this.file)
+    writeOwnerOnly(this.file, JSON.stringify(body))
     this.dirty = false
   }
 }
