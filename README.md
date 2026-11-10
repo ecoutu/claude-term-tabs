@@ -41,12 +41,57 @@ ct [query...] [--list] [--all] [--json] [--no-llm] [--terminal iterm2|wezterm]
 
 The search looks at each session's title, repo, worktree, branch and your first and last prompt.
 
+## Pause and resume
+
+Before restarting the machine:
+
+```bash
+ct pause                # ask every session to wrap up and write a HANDOFF
+ct pause --auto-close   # also exit each session and close its tab once its HANDOFF is in
+ct pause --timeout 20   # wait up to 20 minutes (default 10)
+```
+
+`ct pause` records every live session to a snapshot first, then types the stop prompt into each
+one and shows the sessions it is still waiting on, refreshed every 3 seconds. Enter or a
+double-click jumps to that session's tab; ctrl-r re-sends the stop prompt; Esc stops waiting.
+When the list empties it prints `Safe to restart.`
+
+| State | Meaning |
+|-------|---------|
+| busy | Working; its transcript is still growing |
+| may need you | Busy for 2 minutes with no new output, probably a permission prompt |
+| idle, no HANDOFF | Stopped without writing a HANDOFF; re-send or check it |
+| in shell mode | Its input is in shell mode, so ct will not type into it |
+| can't reach | Not in a supported terminal pane |
+| exited | The process ended without a HANDOFF |
+| exit failed | `--auto-close` sent `/exit` but the session did not end |
+
+ct only ever types the stop prompt and, with `--auto-close`, `/exit` followed by `exit` for the
+shell left behind. It never answers a permission prompt or interrupts a busy session, and it never
+closes a session that has not written a HANDOFF. Sessions without one are still recorded.
+
+After restarting:
+
+```bash
+ct resume               # reopen every recorded session in its window and tab order
+ct resume --dry-run     # print the commands instead
+ct resume --no-prompt   # reopen without sending the resume prompt
+```
+
+Sessions already running are skipped, so running it twice is harmless. Snapshots live in
+`~/.local/state/claude-tabs/snapshots/` and are pruned after 30 days.
+
 ## Config
 
-`~/.config/claude-tabs/config.json`, optional:
+`~/.config/claude-tabs/config.json`, every key optional:
 
 ```json
-{ "resumeCommand": "claude --dangerously-skip-permissions --resume {id}" }
+{
+  "resumeCommand": "claude --dangerously-skip-permissions --resume {id}",
+  "stopPrompt": "Pausing for a machine restart. ...",
+  "resumePrompt": "Resumed after a machine restart. ...",
+  "pauseTimeoutMinutes": 10
+}
 ```
 
 ## Cost and speed
@@ -91,3 +136,9 @@ iTerm2:
 4. `ct --all <words from a closed session>` resumes it in a new tab.
 
 WezTerm: the same four checks, run inside WezTerm.
+
+Pause and resume:
+
+1. `ct resume --dry-run` after a `ct pause` lists every session in tab order.
+2. `ct pause` with two scratch sessions shows them leaving the list as they write HANDOFFs.
+3. One full restart cycle: `ct pause --auto-close`, restart, `ct resume`.
