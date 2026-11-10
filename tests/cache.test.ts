@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync, readFileSync, utimesSync, readdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, utimesSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DigestCache } from '../src/cache.ts'
@@ -64,4 +64,13 @@ test('missing transcript bypasses the cache', () => {
   assert.equal(calls, 2)
   cache.save()
   assert.deepEqual(JSON.parse(readFileSync(cacheFile, 'utf8')).entries, {})
+})
+
+test('cache file and new directory are owner-only', () => {
+  const { transcript, cacheFile } = setup()
+  const cache = DigestCache.load(cacheFile, () => {})
+  cache.get(transcript, () => digest('a'))
+  cache.save()
+  assert.equal(statSync(cacheFile).mode & 0o777, 0o600)
+  assert.equal(statSync(join(cacheFile, '..')).mode & 0o777, 0o700)
 })

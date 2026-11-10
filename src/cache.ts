@@ -58,10 +58,10 @@ export class DigestCache {
   /** Write the cache atomically when anything changed. */
   save (): void {
     if (!this.dirty && existsSync(this.file)) return
-    mkdirSync(dirname(this.file), { recursive: true })
+    mkdirSync(dirname(this.file), { recursive: true, mode: 0o700 })
     const body: CacheFile = { version: CACHE_VERSION, entries: Object.fromEntries(this.entries) }
     const tmp = `${this.file}.${process.pid}.tmp`
-    writeFileSync(tmp, JSON.stringify(body))
+    writeFileSync(tmp, JSON.stringify(body), { mode: 0o600 })
     renameSync(tmp, this.file)
     this.dirty = false
   }
