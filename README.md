@@ -74,6 +74,13 @@ npm test
 
 No dependencies; Node runs the TypeScript directly.
 
+### Releases
+
+Every push to `main` runs the tests, then semantic-release reads the conventional commit
+messages since the last tag and, when any warrant it, tags the next version (`fix:` patch,
+`feat:` minor, `BREAKING CHANGE:` major) and publishes a GitHub release with notes. Nothing is
+published to npm, and `package.json` keeps a placeholder version; the git tag is the version.
+
 ### Manual checks
 
 iTerm2:
