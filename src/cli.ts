@@ -11,6 +11,10 @@ import { defaultDirs } from './paths.ts'
 import { formatPickerLine, pick as realPick } from './picker.ts'
 import { clearWinner, rankLocal, tokenize } from './score.ts'
 import { detectAdapter, type TerminalAdapter } from './terminals/adapter.ts'
+import { runCommand } from './commands.ts'
+import { listPanesOrWarn } from './discover.ts'
+
+export { runCommand }
 import type { Candidate, Exec, Pane } from './types.ts'
 
 const EXIT_OK = 0
@@ -45,7 +49,7 @@ export interface Options {
 export interface Deps {
   exec: Exec
   execTty: Exec
-  dirs: { sessions: string, projects: string, cache: string, config: string }
+  dirs: { sessions: string, projects: string, cache: string, config: string, snapshots: string }
   stdout: (s: string) => void
   stderr: (s: string) => void
   prompt: (q: string) => string
@@ -55,6 +59,9 @@ export interface Deps {
   dirExists: (p: string) => boolean
   resolveAdapter: (override?: string) => TerminalAdapter | undefined
   pick: (cands: Candidate[], summaries: Map<string, string>) => Candidate | undefined
+  isAlive: (pid: number) => boolean
+  sleep: (ms: number) => Promise<void>
+  self: string[]
 }
 
 interface Context {
@@ -236,15 +243,6 @@ function gatherCandidates (opts: Options, deps: Deps, panes: Pane[]): Candidate[
   return [...live, ...closed]
 }
 
-function listPanesOrWarn (adapter: TerminalAdapter | undefined, deps: Deps): Pane[] {
-  if (adapter === undefined) return []
-  try {
-    return adapter.listPanes()
-  } catch (err) {
-    deps.stderr(`claude-tabs: ${(err as Error).message}`)
-    return []
-  }
-}
 
 function byRecency (cands: Candidate[]): Candidate[] {
   return [...cands].sort((a, b) => b.digest.lastActive - a.digest.lastActive)
@@ -260,6 +258,7 @@ function shellQuote (s: string): string {
 }
 
 const realExecTty: Exec = (cmd, args, input) => {
+  if (process.env.CT_NO_REAL_EXEC === '1') return { status: 126, stdout: '', stderr: `${cmd}: blocked by CT_NO_REAL_EXEC` }
   const r = spawnSync(cmd, args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'inherit'] })
   if (r.error) return { status: 127, stdout: '', stderr: `${cmd}: ${r.error.message}` }
   return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: '' }
@@ -279,13 +278,6 @@ function promptTty (question: string): string {
 
 /** Entry point used by bin/claude-tabs. */
 export async function main (argv: string[]): Promise<number> {
-  let opts: Options
-  try {
-    opts = parseArgs(argv)
-  } catch (err) {
-    process.stderr.write(`claude-tabs: ${(err as Error).message}\n${HELP}\n`)
-    return EXIT_ERROR
-  }
   const hasFzf = realExec('sh', ['-c', 'command -v fzf']).status === 0
   const write = (fd: number) => (s: string) => { writeSync(fd, `${s}\n`) }
   const deps: Deps = {
@@ -300,7 +292,26 @@ export async function main (argv: string[]): Promise<number> {
     hasFzf,
     dirExists: realDirExists,
     resolveAdapter: override => detectAdapter(process.env, realExec, override),
-    pick: (cands, summaries) => realPick(cands, summaries, realExecTty, { hasFzf, prompt: promptTty })
+    pick: (cands, summaries) => realPick(cands, summaries, realExecTty, { hasFzf, prompt: promptTty }),
+    isAlive: pid => {
+      try {
+        process.kill(pid, 0)
+        return true
+      } catch {
+        return false
+      }
+    },
+    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+    self: [process.execPath, process.argv[1]]
+  }
+  const sub = await runCommand(argv, deps)
+  if (sub !== undefined) return sub
+  let opts: Options
+  try {
+    opts = parseArgs(argv)
+  } catch (err) {
+    process.stderr.write(`claude-tabs: ${(err as Error).message}\n${HELP}\n`)
+    return EXIT_ERROR
   }
   return run(opts, deps)
 }

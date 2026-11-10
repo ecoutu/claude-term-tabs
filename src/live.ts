@@ -23,7 +23,7 @@ export function collectLiveSessions (opts: {
   return readPidFiles(opts.sessionsDir)
     .filter(f => f.entrypoint === 'cli' && isSameProcess(f, procs.get(f.pid)))
     .map(f => {
-      const path = findTranscript(opts.projectsDir, f.cwd, f.sessionId)
+      const path = transcriptFor(opts.projectsDir, f.cwd, f.sessionId)
       const digest = opts.cache.get(path, () => extractDigest(path, { sessionId: f.sessionId, cwd: f.cwd }))
       return {
         digest,
@@ -80,7 +80,8 @@ function readPidFiles (dir: string): PidFile[] {
     })
 }
 
-function findTranscript (projectsDir: string, cwd: string, sessionId: string): string {
+/** Transcript path for a session, falling back to a search by id across project directories. */
+export function transcriptFor (projectsDir: string, cwd: string, sessionId: string): string {
   const direct = transcriptPath(projectsDir, cwd, sessionId)
   if (existsSync(direct)) return direct
   for (const dir of readdirSync(projectsDir)) {

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fzfArgs, runStragglerUi, POLL_MS } from '../src/pause/ui.ts'
+import { fzfArgs, fzfEnv, reloadAction, runStragglerUi, POLL_MS } from '../src/pause/ui.ts'
 import type { PauseDeps, PauseRun, Tracked } from '../src/pause/run.ts'
 import { DEFAULT_RESUME_PROMPT } from '../src/config.ts'
 
@@ -63,4 +63,17 @@ test('the timeout ends the loop and returns the latest run', async () => {
   const end = await runStragglerUi(s.run, s.deps, s.io, s.advance)
   assert.equal(end.tracked[0].state, 'may-need-you')
   assert.ok(s.clock() >= POLL_MS * 4 && s.clock() <= POLL_MS * 5)
+})
+
+test('reload action carries only a ct-chosen file path, never list data', () => {
+  assert.equal(reloadAction('/tmp/ct-abc/lines'), "reload(cat '/tmp/ct-abc/lines')")
+  assert.throws(() => reloadAction('/tmp/x)+execute(rm)/lines'), /unsafe/)
+})
+
+test('fzf gets a random API key in its environment', () => {
+  const a = fzfEnv({ PATH: '/bin' })
+  const b = fzfEnv({ PATH: '/bin' })
+  assert.equal(a.PATH, '/bin')
+  assert.match(a.FZF_API_KEY ?? '', /^[0-9a-f]{64}$/)
+  assert.notEqual(a.FZF_API_KEY, b.FZF_API_KEY)
 })

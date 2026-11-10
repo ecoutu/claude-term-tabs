@@ -29,5 +29,6 @@ export const defaultDirs = {
   sessions: join(homedir(), '.claude', 'sessions'),
   projects: join(homedir(), '.claude', 'projects'),
   cache: join(homedir(), '.cache', 'claude-tabs', 'digests.json'),
-  config: join(homedir(), '.config', 'claude-tabs', 'config.json')
+  config: join(homedir(), '.config', 'claude-tabs', 'config.json'),
+  snapshots: join(homedir(), '.local', 'state', 'claude-tabs', 'snapshots')
 }

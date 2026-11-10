@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseArgs, run, type Deps } from '../src/cli.ts'
+import { parseArgs, run, runCommand, type Deps } from '../src/cli.ts'
+import { saveSnapshot, type Snapshot } from '../src/snapshot.ts'
 import { transcriptPath } from '../src/paths.ts'
 import type { TerminalAdapter } from '../src/terminals/adapter.ts'
 import type { Exec, Pane } from '../src/types.ts'
@@ -19,7 +20,7 @@ const SESSIONS: FakeSession[] = [
 
 function world (opts: { windows?: number, claude?: (input: string) => { status: number, stdout: string } } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'ct-cli-'))
-  const dirs = { sessions: join(root, 'sessions'), projects: join(root, 'projects'), cache: join(root, 'cache', 'd.json'), config: join(root, 'config.json') }
+  const dirs = { sessions: join(root, 'sessions'), projects: join(root, 'projects'), cache: join(root, 'cache', 'd.json'), config: join(root, 'config.json'), snapshots: join(root, 'snapshots') }
   mkdirSync(dirs.sessions)
   for (const s of SESSIONS) {
     const path = transcriptPath(dirs.projects, s.cwd, s.id)
@@ -38,6 +39,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
   }
   const focused: string[] = []
   const opened: Array<[string, string]> = []
+  const sent: Array<[string, string]> = []
   const panes: Pane[] = SESSIONS.filter(s => s.live !== false).map(s => ({
     id: `pane-${s.id}`, tty: `/dev/${s.tty}`, title: s.title, windowId: 'w', windowIndex: s.tab === 3 ? (opts.windows ?? 1) : 1, tabIndex: s.tab
   }))
@@ -45,7 +47,9 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     name: 'iterm2',
     listPanes: () => panes,
     focus: p => { focused.push(p.id) },
-    openPane: (cwd, cmd) => { opened.push([cwd, cmd]) }
+    sendText: (p, text) => { sent.push([p.id, text]) },
+    closePane: () => {},
+    openPane: (cwd, cmd) => { opened.push([cwd, cmd]); return 'new' }
   }
   let picked: string | undefined
   const deps: Deps = {
@@ -60,9 +64,12 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     hasFzf: false,
     dirExists: p => !p.includes('gone'),
     resolveAdapter: () => adapter,
-    pick: cands => cands.find(c => c.digest.sessionId === picked)
+    pick: cands => cands.find(c => c.digest.sessionId === picked),
+    isAlive: () => true,
+    sleep: async () => {},
+    self: ['node', 'ct']
   }
-  return { deps, calls, out, err, focused, opened, choose: (id: string) => { picked = id } }
+  return { deps, calls, out, err, focused, opened, sent, choose: (id: string) => { picked = id } }
 }
 
 const haiku = (ids: string[]) => () => ({ status: 0, stdout: JSON.stringify({ structured_output: { matches: ids.map(sessionId => ({ sessionId, summary: `about ${sessionId}` })) } }) })
@@ -209,4 +216,61 @@ test('no local match with haiku down says so instead of no matches', () => {
   assert.equal(run(parseArgs(['kubernetes']), w.deps), 1)
   assert.doesNotMatch(w.out.join('\n'), /No matching sessions/)
   assert.match(w.out.join('\n'), /Haiku was unavailable/)
+})
+
+test('ct pause types the stop prompt into every live session and reports stragglers', async () => {
+  const w = world()
+  w.deps.isTty = false
+  const code = await runCommand(['pause', '--timeout', '0.001'], w.deps)
+  assert.equal(code, 1)
+  assert.deepEqual(w.sent.map(x => x[0]).sort(), ['pane-csv-a', 'pane-csv-b', 'pane-envoy-id'])
+  assert.match(w.sent[0][1], /Pausing for a machine restart/)
+  assert.match(w.out.join('\n'), /0 of 3 sessions wrote a HANDOFF/)
+})
+
+test('ct resume --dry-run prints commands from the latest snapshot and skips live sessions', async () => {
+  const w = world()
+  const snap: Snapshot = { id: '2026-11-10T00-00-00.000Z', createdAt: '2026-11-10T00:00:00.000Z', sessions: [
+    { sessionId: 'envoy-id', cwd: '/w/api-proxy', repo: 'api-proxy', windowIndex: 1, tabIndex: 1, handoffWritten: true },
+    { sessionId: 'old-id', cwd: '/w/old', repo: 'old', windowIndex: 1, tabIndex: 2, handoffWritten: true }
+  ] }
+  saveSnapshot(w.deps.dirs.snapshots, snap)
+  w.deps.dirExists = () => true
+  assert.equal(await runCommand(['resume', '--dry-run', '--no-prompt'], w.deps), 0)
+  const text = w.out.join('\n')
+  assert.match(text, /already running/)
+  assert.match(text, /cd '\/w\/old' && claude --resume old-id/)
+  assert.deepEqual(w.opened, [])
+})
+
+test('ct resume without a snapshot says so', async () => {
+  const w = world()
+  assert.equal(await runCommand(['resume'], w.deps), 1)
+  assert.match(w.out.join('\n'), /No snapshot found/)
+})
+
+test('_focus jumps to a live session by id', async () => {
+  const w = world()
+  assert.equal(await runCommand(['_focus', 'csv-b'], w.deps), 0)
+  assert.deepEqual(w.focused, ['pane-csv-b'])
+})
+
+test('_send-stop types the stop prompt into one session', async () => {
+  const w = world()
+  assert.equal(await runCommand(['_send-stop', 'csv-a'], w.deps), 0)
+  assert.deepEqual(w.sent.map(x => x[0]), ['pane-csv-a'])
+})
+
+test('a search query is not a subcommand, and -- forces a search', async () => {
+  const w = world()
+  assert.equal(await runCommand(['envoy'], w.deps), undefined)
+  assert.equal(await runCommand(['--', 'pause'], w.deps), undefined)
+  assert.equal(parseArgs(['--', 'pause']).query, 'pause')
+})
+
+test('unknown flags on subcommands are usage errors', async () => {
+  const w = world()
+  assert.equal(await runCommand(['pause', '--bogus'], w.deps), 2)
+  assert.equal(await runCommand(['resume', '--bogus'], w.deps), 2)
+  assert.match(w.err.join('\n'), /bogus/)
 })
