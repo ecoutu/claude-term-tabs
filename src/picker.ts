@@ -75,7 +75,7 @@ function previewText (d: Digest): string {
     `first:  ${d.firstPrompt ?? ''}`,
     `last:   ${d.lastPrompt ?? ''}`,
     d.note !== undefined ? `note:   ${d.note}` : ''
-  ].join('\n')
+  ].map(flatten).join('\n')
 }
 
 function tabLabel (c: Candidate): string {
@@ -83,5 +83,5 @@ function tabLabel (c: Candidate): string {
 }
 
 function flatten (s: string): string {
-  return s.replace(/[\t\n\r\x00-\x1f\x7f]+/g, ' ').replace(/ {2,}/g, ' ').trim()
+  return s.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?/g, '').replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/ {2,}/g, ' ').trim()
 }

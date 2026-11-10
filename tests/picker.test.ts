@@ -1,4 +1,5 @@
 import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { formatAge, formatPickerLine, parsePickerSelection, pick } from '../src/picker.ts'
 import type { Candidate, Exec } from '../src/types.ts'
@@ -51,4 +52,18 @@ test('numbered fallback picks by number and empty input cancels', () => {
   assert.equal(pick(cands, new Map(), exec, { hasFzf: false, prompt: () => '2' })?.digest.sessionId, 'S2')
   assert.equal(pick(cands, new Map(), exec, { hasFzf: false, prompt: () => '' }), undefined)
   assert.equal(pick(cands, new Map(), exec, { hasFzf: false, prompt: () => '9' }), undefined)
+})
+
+test('preview text strips escape sequences and control characters', () => {
+  const c = cand('S1')
+  const evil = { ...c, digest: { ...c.digest, firstPrompt: 'hi\x1b]52;c;cGF3bmVk\x07there\x9b31m', lastPrompt: 'a\rb' } }
+  let preview = ''
+  const exec: Exec = (_cmd, args) => {
+    const cmd = args[args.indexOf('--preview') + 1]
+    preview = readFileSync(cmd.replace(/^cat /, '').replace('{1}', 'S1'), 'utf8')
+    return { status: 130, stdout: '', stderr: '' }
+  }
+  pick([evil], new Map(), exec, { hasFzf: true, prompt: () => '' })
+  assert.ok(!/[\x00-\x09\x0b-\x1f\x7f-\x9f]/.test(preview), JSON.stringify(preview))
+  assert.match(preview, /first:\s+hi.*there/)
 })
