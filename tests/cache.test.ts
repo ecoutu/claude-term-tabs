@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync, readFileSync, utimesSync, readdirSync, statSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, utimesSync, readdirSync, statSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DigestCache } from '../src/cache.ts'
@@ -73,4 +73,15 @@ test('cache file and new directory are owner-only', () => {
   cache.save()
   assert.equal(statSync(cacheFile).mode & 0o777, 0o600)
   assert.equal(statSync(join(cacheFile, '..')).mode & 0o777, 0o700)
+})
+
+test('an existing loose cache directory is tightened to owner-only', () => {
+  const { dir, transcript } = setup()
+  const cacheDir = join(dir, 'loose')
+  mkdirSync(cacheDir, { mode: 0o755 })
+  const cacheFile = join(cacheDir, 'digests.json')
+  const cache = DigestCache.load(cacheFile, () => {})
+  cache.get(transcript, () => digest('a'))
+  cache.save()
+  assert.equal(statSync(cacheDir).mode & 0o777, 0o700)
 })
