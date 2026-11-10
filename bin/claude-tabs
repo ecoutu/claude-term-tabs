@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+import { realpathSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+const root = dirname(dirname(realpathSync(process.argv[1])))
+const { main } = await import(pathToFileURL(join(root, 'src', 'cli.ts')).href)
+process.exitCode = await main(process.argv.slice(2))
