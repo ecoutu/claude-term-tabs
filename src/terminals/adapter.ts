@@ -8,6 +8,7 @@ export interface TerminalAdapter {
   listPanes(): Pane[]
   focus(pane: Pane): void
   sendText(pane: Pane, text: string): void
+  /** Ends the pane once nothing but its shell is running (iTerm2 types `exit`, WezTerm kills the pane). */
   closePane(pane: Pane): void
   /** Opens a pane running `command` in `cwd`; returns the new pane id. */
   openPane(cwd: string, command: string, opts?: { newWindow?: boolean }): string

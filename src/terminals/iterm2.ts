@@ -44,7 +44,7 @@ const FOCUS_SCRIPT = sessionScript('s.select(); t.select(); w.select(); app.acti
 const SEND_SCRIPT = sessionScript('s.write({ text: argv[1], newline: false }); delay(0.3); s.write({ text: "" })')
 const PASTE_START = '\x1b[200~'
 const PASTE_END = '\x1b[201~'
-const CLOSE_SCRIPT = sessionScript('s.close()')
+const CLOSE_SCRIPT = sessionScript("s.write({ text: 'exit' })")
 
 const OPEN_SCRIPT = `function run (argv) {
   const app = Application('iTerm2')

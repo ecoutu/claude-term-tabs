@@ -56,9 +56,12 @@ test('sendText pastes the text as one bracketed paste and passes it as an argume
   assert.ok(!calls[0].args[3].includes('Pause'))
 })
 
-test('closePane passes the session id', () => {
+test('closePane ends the shell instead of closing the tab, so no confirmation prompt appears', () => {
   const { exec, calls } = recorder()
   iterm2Adapter(exec).closePane(pane)
+  const script = calls[0].args[3]
+  assert.match(script, /write\(\{ text: .exit. \}\)/)
+  assert.doesNotMatch(script, /close\(\)/)
   assert.equal(calls[0].args[calls[0].args.length - 1], 'SID-1')
 })
 
