@@ -1,0 +1,161 @@
+[
+ {
+  "sessionId": "s00",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-orders/.claude/worktrees/TKT-6184-brand-only",
+  "repo": "api-orders",
+  "worktree": "TKT-6184-brand-only",
+  "title": "TKT-6184",
+  "branch": "feat/TKT-6184-combined-brand-only",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s01",
+  "cwd": "/Users/e/examplecorp/src/engineering",
+  "repo": "engineering",
+  "title": "SP deferred batch async Pub/Sub ADR",
+  "branch": "main-downstream",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s02",
+  "cwd": "/Users/e/examplecorp/src/web-platform",
+  "repo": "web-platform",
+  "title": "Sign-in method lookup migration TKT-7716",
+  "branch": "main",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s03",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-orders/.claude/worktrees/TKT-6298",
+  "repo": "api-orders",
+  "worktree": "TKT-6298",
+  "title": "Api-orders-prod CSV ingestion errors",
+  "branch": "fix/TKT-6298",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s04",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-proxy",
+  "repo": "api-proxy",
+  "title": "Envoy api-accounts exposure and staging",
+  "branch": "main",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s05",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-orders/.claude/worktrees/TKT-7738-migration",
+  "repo": "api-orders",
+  "worktree": "TKT-7738-migration",
+  "title": "SP deferred batch time-budgeted slices",
+  "branch": "fix/TKT-7738-renumber-staff-seed-migration",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s06",
+  "cwd": "/Users/e/examplecorp/src/engineering",
+  "repo": "engineering",
+  "title": "Code review approval policy (523)",
+  "branch": "main-downstream",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s07",
+  "cwd": "/Users/e/examplecorp/src/workspace/iaac/opentofu-gcp",
+  "repo": "opentofu-gcp",
+  "title": "Cube.dev IaC deployment spike",
+  "branch": "feat/TKT-7746",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s08",
+  "cwd": "/Users/e/examplecorp/src/opentofu-gcp",
+  "repo": "opentofu-gcp",
+  "title": "TKT-7615 / TKT-7616 staging TLS",
+  "branch": "main",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s09",
+  "cwd": "/Users/e/examplecorp/src/engineering",
+  "repo": "engineering",
+  "title": "Performance pillars review notes",
+  "branch": "main-downstream",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s10",
+  "cwd": "/Users/e/examplecorp/src/engineering",
+  "repo": "engineering",
+  "title": "GitHub user onboarding skill",
+  "branch": "main-downstream",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s11",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-orders/.claude/worktrees/TKT-7733",
+  "repo": "api-orders",
+  "worktree": "TKT-7733",
+  "title": "TKT-7733 TKT-7732 Vendor renamed handle refresh",
+  "branch": "fix/TKT-7733",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s12",
+  "cwd": "/Users/e/examplecorp/src/reports-ui",
+  "repo": "reports-ui",
+  "title": "Claude/ChatGPT Enterprise CI sync",
+  "branch": "main",
+  "ageMinutes": 6
+ },
+ {
+  "sessionId": "s13",
+  "cwd": "/Users/e/examplecorp/src/engineering",
+  "repo": "engineering",
+  "title": "TKT-6033 AWS shutdown and GCS backup",
+  "branch": "main-downstream",
+  "ageMinutes": 7
+ },
+ {
+  "sessionId": "s14",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-accounts/.claude/worktrees/TKT-7765",
+  "repo": "api-accounts",
+  "worktree": "TKT-7765",
+  "title": "api-accounts date_policies_accepted test timeout",
+  "branch": "fix/TKT-7765",
+  "ageMinutes": 10
+ },
+ {
+  "sessionId": "s15",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-orders/.claude/worktrees/TKT-7751",
+  "repo": "api-orders",
+  "worktree": "TKT-7751",
+  "title": "CSV ingestion merge-failed for zephyrx",
+  "branch": "fix/TKT-7751",
+  "ageMinutes": 0
+ },
+ {
+  "sessionId": "s16",
+  "cwd": "/Users/e/examplecorp/src/data-warehouse-etl",
+  "repo": "data-warehouse-etl",
+  "title": "Slack thread TKT backlog ticket",
+  "branch": "feat/TKT-7767",
+  "ageMinutes": 1
+ },
+ {
+  "sessionId": "s17",
+  "cwd": "/Users/e/examplecorp/src/engineering",
+  "repo": "engineering",
+  "title": "iTerm2 Claude session finder",
+  "branch": "main-downstream",
+  "ageMinutes": 0
+ },
+ {
+  "sessionId": "s18",
+  "cwd": "/Users/e/examplecorp/src/workspace/src/api-accounts/.claude/worktrees/TKT-7730-domain-name-unique",
+  "repo": "api-accounts",
+  "worktree": "TKT-7730-domain-name-unique",
+  "title": "TKT-7730 domains name case-insensitive unique",
+  "branch": "feat/TKT-7730-domain-name-unique",
+  "ageMinutes": 0
+ }
+]
