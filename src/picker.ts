@@ -57,7 +57,7 @@ function runFzf (lines: string[], cands: Candidate[], exec: Exec): string | unde
     const r = exec('fzf', [
       '--delimiter', '\t', '--with-nth', '2..', '--no-sort', '--height', '60%', '--reverse',
       '--prompt', 'session> ',
-      '--preview', `cat ${join(previewDir, '{1}')}`, '--preview-window', 'down,6,wrap'
+      '--preview', `cat ${shellQuote(previewDir)}/{1}`, '--preview-window', 'down,6,wrap'
     ], lines.join('\n'))
     if (FZF_CANCEL.has(r.status)) return undefined
     if (r.status !== 0) throw new Error(`fzf failed (${r.status}): ${r.stderr.trim()}`)
@@ -76,6 +76,10 @@ function previewText (d: Digest): string {
     `last:   ${d.lastPrompt ?? ''}`,
     d.note !== undefined ? `note:   ${d.note}` : ''
   ].map(flatten).join('\n')
+}
+
+function shellQuote (s: string): string {
+  return `'${s.replaceAll("'", "'\\''")}'`
 }
 
 function tabLabel (c: Candidate): string {

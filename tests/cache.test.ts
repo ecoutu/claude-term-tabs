@@ -85,3 +85,15 @@ test('an existing loose cache directory is tightened to owner-only', () => {
   cache.save()
   assert.equal(statSync(cacheDir).mode & 0o777, 0o700)
 })
+
+test('retainOnly drops entries for transcripts no longer listed', () => {
+  const { dir, transcript, cacheFile } = setup()
+  const other = join(dir, 'other.jsonl')
+  writeFileSync(other, '{}\n')
+  const cache = DigestCache.load(cacheFile, () => {})
+  cache.get(transcript, () => digest('a'))
+  cache.get(other, () => digest('b'))
+  cache.retainOnly(new Set([transcript]))
+  cache.save()
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(cacheFile, 'utf8')).entries), [transcript])
+})

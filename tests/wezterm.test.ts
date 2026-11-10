@@ -30,11 +30,12 @@ test('focus activates the pane by id', () => {
   assert.deepEqual(calls[0], { cmd: 'wezterm', args: ['cli', 'activate-pane', '--pane-id', '22'] })
 })
 
-test('openPane spawns in cwd through sh', () => {
-  const { exec, calls } = recorder()
-  weztermAdapter(exec).openPane('/x', 'claude --resume S')
-  assert.deepEqual(calls[0], { cmd: 'wezterm', args: ['cli', 'spawn', '--cwd', '/x', '--', 'sh', '-c', 'claude --resume S'] })
-})
 
 test('wezterm failure throws', () =>
   assert.throws(() => weztermAdapter(recorder('', 1).exec).listPanes(), /wezterm/))
+
+test('openPane runs through a login shell and keeps the pane open afterwards', () => {
+  const { exec, calls } = recorder()
+  weztermAdapter(exec, '/bin/zsh').openPane('/x', 'claude --resume S')
+  assert.deepEqual(calls[0].args, ['cli', 'spawn', '--cwd', '/x', '--', '/bin/zsh', '-lc', 'claude --resume S; exec /bin/zsh -l'])
+})

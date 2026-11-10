@@ -228,6 +228,7 @@ function gatherCandidates (opts: Options, deps: Deps, panes: Pane[]): Candidate[
   const closed = opts.all
     ? listClosedSessions({ projectsDir: deps.dirs.projects, liveIds: new Set(live.map(c => c.digest.sessionId)), cache, dirExists: deps.dirExists })
     : []
+  if (opts.all) cache.retainOnly(cache.touched())
   try {
     cache.save()
   } catch (err) {

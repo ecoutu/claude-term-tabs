@@ -60,10 +60,17 @@ test('preview text strips escape sequences and control characters', () => {
   let preview = ''
   const exec: Exec = (_cmd, args) => {
     const cmd = args[args.indexOf('--preview') + 1]
-    preview = readFileSync(cmd.replace(/^cat /, '').replace('{1}', 'S1'), 'utf8')
+    preview = readFileSync(cmd.replace(/^cat '([^']+)'\/\{1\}$/, '$1/S1'), 'utf8')
     return { status: 130, stdout: '', stderr: '' }
   }
   pick([evil], new Map(), exec, { hasFzf: true, prompt: () => '' })
   assert.ok(!/[\x00-\x09\x0b-\x1f\x7f-\x9f]/.test(preview), JSON.stringify(preview))
   assert.match(preview, /first:\s+hi.*there/)
+})
+
+test('preview command quotes a temp path containing spaces', () => {
+  let previewCmd = ''
+  const exec: Exec = (_c, args) => { previewCmd = args[args.indexOf('--preview') + 1]; return { status: 130, stdout: '', stderr: '' } }
+  pick([cand('S1')], new Map(), exec, { hasFzf: true, prompt: () => '' })
+  assert.match(previewCmd, /^cat '[^']+'\/\{1\}$/)
 })

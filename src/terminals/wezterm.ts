@@ -4,7 +4,7 @@ import type { TerminalAdapter } from './adapter.ts'
 interface WeztermPane { window_id: number, tab_id: number, pane_id: number, title: string, tty_name?: string }
 
 /** WezTerm adapter driven by `wezterm cli`. */
-export function weztermAdapter (exec: Exec): TerminalAdapter {
+export function weztermAdapter (exec: Exec, shell: string = process.env.SHELL ?? '/bin/sh'): TerminalAdapter {
   const cli = (args: string[]): string => {
     const r = exec('wezterm', ['cli', ...args])
     if (r.status !== 0) throw new Error(`wezterm cli ${args[0]} failed (${r.status}): ${r.stderr.trim()}`)
@@ -14,7 +14,7 @@ export function weztermAdapter (exec: Exec): TerminalAdapter {
     name: 'wezterm',
     listPanes: () => toPanes(JSON.parse(cli(['list', '--format', 'json'])) as WeztermPane[]),
     focus: (pane) => { cli(['activate-pane', '--pane-id', pane.id]) },
-    openPane: (cwd, command) => { cli(['spawn', '--cwd', cwd, '--', 'sh', '-c', command]) }
+    openPane: (cwd, command) => { cli(['spawn', '--cwd', cwd, '--', shell, '-lc', `${command}; exec ${shell} -l`]) }
   }
 }
 

@@ -11,7 +11,8 @@ interface CacheFile { version: number, entries: Record<string, Entry> }
 /** Digest cache keyed by transcript path, valid while the file's size and mtime are unchanged. */
 export class DigestCache {
   private readonly file: string
-  private entries: Map<string, Entry>
+  private readonly entries: Map<string, Entry>
+  private readonly seen = new Set<string>()
   private dirty = false
 
   private constructor (file: string, entries: Map<string, Entry>) {
@@ -48,12 +49,28 @@ export class DigestCache {
     } catch {
       return extract()
     }
+    this.seen.add(path)
     const hit = this.entries.get(path)
     if (hit !== undefined && hit.size === stat.size && hit.mtimeMs === stat.mtimeMs) return hit.digest
     const digest = extract()
-    this.entries = new Map(this.entries).set(path, { size: stat.size, mtimeMs: stat.mtimeMs, digest })
+    this.entries.set(path, { size: stat.size, mtimeMs: stat.mtimeMs, digest })
     this.dirty = true
     return digest
+  }
+
+  /** Paths looked up through `get` during this run. */
+  touched (): Set<string> {
+    return new Set(this.seen)
+  }
+
+  /** Drop every entry whose path is not in `paths` (call after a full listing). */
+  retainOnly (paths: Set<string>): void {
+    for (const key of [...this.entries.keys()]) {
+      if (!paths.has(key)) {
+        this.entries.delete(key)
+        this.dirty = true
+      }
+    }
   }
 
   /** Write the cache atomically when anything changed. */
