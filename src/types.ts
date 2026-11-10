@@ -43,4 +43,4 @@ export interface ExecResult {
 }
 
 /** Runs an external command synchronously; injected so tests can fake it. */
-export type Exec = (cmd: string, args: string[], input?: string) => ExecResult
+export type Exec = (cmd: string, args: string[], input?: string, opts?: { timeoutMs?: number }) => ExecResult

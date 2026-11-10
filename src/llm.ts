@@ -3,6 +3,7 @@ import type { Candidate, Exec } from './types.ts'
 /** Most candidates sent to Haiku in one call. */
 export const MAX_LLM_CANDIDATES = 15
 const FIELD_CHARS = 120
+const HAIKU_TIMEOUT_MS = 20_000
 
 const SYSTEM_PROMPT = [
   'You match a user\'s loose description to coding sessions.',
@@ -61,18 +62,24 @@ export function parseHaikuRanking (stdout: string, knownIds: Set<string>): LlmMa
   const payload = envelope.structured_output ?? parseResultText(envelope.result)
   const matches = (payload as { matches?: unknown } | undefined)?.matches
   if (!Array.isArray(matches)) throw new Error('Haiku output had no matches array')
-  return matches.flatMap(m => {
+  const known = matches.flatMap(m => {
     const id = (m as LlmMatch)?.sessionId
     const summary = (m as LlmMatch)?.summary
     return typeof id === 'string' && knownIds.has(id) ? [{ sessionId: id, summary: typeof summary === 'string' ? summary : '' }] : []
   })
+  if (matches.length > 0 && known.length === 0) throw new Error('Haiku returned only unknown session ids')
+  return known
 }
 
 /** Ask Haiku to rank candidates. Returns undefined (after warning) when the call fails in any way. */
 export function askHaiku (query: string, cands: Candidate[], exec: Exec, warn: (m: string) => void): LlmMatch[] | undefined {
   const sent = cands.slice(0, MAX_LLM_CANDIDATES)
   const { args, input } = buildHaikuArgs(query, sent)
-  const r = exec('claude', args, input)
+  const r = exec('claude', args, input, { timeoutMs: HAIKU_TIMEOUT_MS })
+  if (r.status === 124) {
+    warn(`claude-tabs: Haiku call timed out after ${HAIKU_TIMEOUT_MS / 1000} s; using local ranking`)
+    return undefined
+  }
   if (r.status === 127) {
     warn('claude-tabs: claude not found, using local ranking')
     return undefined

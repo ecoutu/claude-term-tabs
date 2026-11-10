@@ -116,16 +116,20 @@ function search (ctx: Context, pool: Candidate[]): number {
   if (tokenize(opts.query).length === 0) return choose(ctx, byRecency(pool.filter(c => c.live)), new Map())
   const ranked = rankLocal(opts.query, pool, deps.now())
   const winner = clearWinner(ranked)
-  if (winner !== undefined) return act(ctx, winner)
+  if (winner !== undefined) return confident(ctx, winner)
   const local = ranked.map(r => r.cand)
   if (opts.noLlm) return choose(ctx, local, new Map())
   const sent = dedupe([...local, ...byRecency(pool)]).slice(0, MAX_LLM_CANDIDATES)
   const matches = askHaiku(opts.query, sent, deps.exec, deps.stderr)
-  if (matches === undefined) return choose(ctx, local, new Map())
+  if (matches === undefined) {
+    if (local.length > 0) return choose(ctx, local, new Map())
+    deps.stdout('No local match, and Haiku was unavailable (see the warning above). Try different words or --all.')
+    return EXIT_NONE
+  }
   const byId = new Map(sent.map(c => [c.digest.sessionId, c]))
   const found = matches.flatMap(m => byId.get(m.sessionId) ?? [])
   const summaries = new Map(matches.map(m => [m.sessionId, m.summary]))
-  if (found.length === 1) return act(ctx, found[0], summaries.get(found[0].digest.sessionId))
+  if (found.length === 1) return confident(ctx, found[0], summaries.get(found[0].digest.sessionId))
   return choose(ctx, found, summaries)
 }
 
@@ -135,10 +139,14 @@ function choose (ctx: Context, cands: Candidate[], summaries: Map<string, string
     deps.stdout(opts.all ? 'No matching sessions.' : 'No matching sessions. Try --all.')
     return EXIT_NONE
   }
-  if (cands.length === 1) return act(ctx, cands[0], summaries.get(cands[0].digest.sessionId))
   if (opts.list || !deps.isTty) return printList(ctx, cands, summaries)
   const chosen = deps.pick(cands, summaries)
-  return chosen === undefined ? EXIT_NONE : act(ctx, chosen)
+  return chosen === undefined ? EXIT_NONE : act(ctx, chosen, summaries.get(chosen.digest.sessionId))
+}
+
+function confident (ctx: Context, c: Candidate, summary?: string): number {
+  if (c.live) return act(ctx, c, summary)
+  return choose(ctx, [c], new Map(summary !== undefined ? [[c.digest.sessionId, summary]] : []))
 }
 
 function act (ctx: Context, c: Candidate, summary?: string): number {

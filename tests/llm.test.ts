@@ -64,3 +64,15 @@ test('askHaiku returns parsed ranking', () => {
   const exec: Exec = () => ({ status: 0, stdout: envelope([{ sessionId: 'id3', summary: 's' }]), stderr: '' })
   assert.deepEqual(askHaiku('q', many, exec, () => {}), [{ sessionId: 'id3', summary: 's' }])
 })
+
+test('askHaiku sets a timeout and treats a timeout as a failed call', () => {
+  let timeout: number | undefined
+  const exec: Exec = (_c, _a, _i, opts) => { timeout = opts?.timeoutMs; return { status: 124, stdout: '', stderr: 'claude: timed out' } }
+  const warnings: string[] = []
+  assert.equal(askHaiku('q', many, exec, m => warnings.push(m)), undefined)
+  assert.ok(timeout !== undefined && timeout > 0 && timeout <= 30_000)
+  assert.match(warnings[0], /timed out/)
+})
+
+test('parse throws when every returned id is unknown', () =>
+  assert.throws(() => parseHaikuRanking(envelope([{ sessionId: 'nope', summary: 'x' }]), new Set(['id1'])), /unknown/))

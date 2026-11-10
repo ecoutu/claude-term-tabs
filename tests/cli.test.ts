@@ -144,15 +144,17 @@ test('no match suggests --all', () => {
 
 test('--all finds a closed session whose directory is gone and explains why it cannot resume', () => {
   const w = world()
+  w.choose('old-id')
   assert.equal(run(parseArgs(['--all', '--no-llm', 'cube']), w.deps), 1)
   assert.deepEqual(w.opened, [])
   assert.match(w.out.join('\n'), /no longer exists/)
   assert.match(w.out.join('\n'), /claude --resume old-id/)
 })
 
-test('--all resumes a closed session in a new pane', () => {
+test('--all resumes a closed session in a new pane once it is chosen', () => {
   const w = world()
   w.deps.dirExists = () => true
+  w.choose('old-id')
   assert.equal(run(parseArgs(['--all', '--no-llm', 'cube']), w.deps), 0)
   assert.deepEqual(w.opened, [['/w/gone-repo', 'claude --resume old-id']])
 })
@@ -175,4 +177,36 @@ test('invalid config is an error, not an empty config', () => {
   w.deps.dirExists = () => true
   assert.equal(run(parseArgs(['--all', '--no-llm', 'cube']), w.deps), 2)
   assert.match(w.err.join('\n'), /config/)
+})
+
+test('a weak single local hit opens the picker instead of switching', () => {
+  const w = world()
+  let offered: string[] = []
+  w.deps.pick = cands => { offered = cands.map(c => c.digest.sessionId); return undefined }
+  assert.equal(run(parseArgs(['--no-llm', 'envo']), w.deps), 1)
+  assert.deepEqual(offered, ['envoy-id'])
+  assert.deepEqual(w.focused, [])
+})
+
+test('a clear local winner that is closed is offered, not resumed', () => {
+  const w = world()
+  w.deps.dirExists = () => true
+  assert.equal(run(parseArgs(['--all', '--no-llm', 'cube']), w.deps), 1)
+  assert.deepEqual(w.opened, [])
+})
+
+test('haiku returning only unknown ids falls back to the local ranking', () => {
+  const w = world({ claude: haiku(['bogus']) })
+  let offered = 0
+  w.deps.pick = cands => { offered = cands.length; return undefined }
+  run(parseArgs(['csv', 'ingestion']), w.deps)
+  assert.equal(offered, 2)
+  assert.match(w.err.join('\n'), /using local ranking/)
+})
+
+test('no local match with haiku down says so instead of no matches', () => {
+  const w = world({ claude: () => ({ status: 1, stdout: '' }) })
+  assert.equal(run(parseArgs(['kubernetes']), w.deps), 1)
+  assert.doesNotMatch(w.out.join('\n'), /No matching sessions/)
+  assert.match(w.out.join('\n'), /Haiku was unavailable/)
 })
