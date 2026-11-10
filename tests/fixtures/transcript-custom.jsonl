@@ -1,0 +1,9 @@
+{"type":"user","message":{"role":"user","content":"<command-name>/clear</command-name>"},"cwd":"/Users/e/src/api-accounts","gitBranch":"main"}
+{"type":"user","isMeta":true,"message":{"role":"user","content":"Caveat: meta"},"cwd":"/Users/e/src/api-accounts","gitBranch":"main"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"ignored"}]},"cwd":"/Users/e/src/api-accounts","gitBranch":"main"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Is envoy exposing api-accounts?"}]},"cwd":"/Users/e/src/api-accounts","gitBranch":"main"}
+{"type":"ai-title","aiTitle":"Old"}
+{"type":"custom-title","customTitle":"My name"}
+{"type":"ai-title","aiTitle":"Envoy api-accounts exposure"}
+{"type":"last-prompt","lastPrompt":"check staging too"}
+{"type":"assistant","message":{"role":"assistant","content":[]},"cwd":"/Users/e/src/api-accounts","gitBranch":"tkt-1"}
