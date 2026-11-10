@@ -25,3 +25,23 @@ test('hasHandoff matches a heading at a line start only', () => {
   for (const t of ['HANDOFF\n- Goal', 'Done.\n## HANDOFF\n- x', '**HANDOFF**\n- x', '  HANDOFF:']) assert.equal(hasHandoff(t), true, t)
   for (const t of ['I will write a HANDOFF later', 'HANDOFFS are good', undefined]) assert.equal(hasHandoff(t), false, String(t))
 })
+
+test('only assistant text after the stop prompt message counts', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { latestAssistantAfterPrompt } = await import('../src/handoff.ts')
+  const f = join(mkdtempSync(join(tmpdir(), 'ct-ho-')), 't.jsonl')
+  const L = (o: unknown) => JSON.stringify(o)
+  const lines = [
+    L({ type: 'assistant', timestamp: '2026-11-10T10:00:05Z', message: { content: [{ type: 'text', text: 'Docs:\nHANDOFF heading explained' }] } })
+  ]
+  writeFileSync(f, lines.join('\n') + '\n')
+  const since = Date.parse('2026-11-10T10:00:00Z')
+  assert.equal(latestAssistantAfterPrompt(f, 'Pausing for a machine restart.', since), undefined)
+  writeFileSync(f, [...lines,
+    L({ type: 'user', timestamp: '2026-11-10T10:00:10Z', message: { content: 'Pausing for a machine restart. Stop at the nearest safe point' } }),
+    L({ type: 'assistant', timestamp: '2026-11-10T10:00:20Z', message: { content: [{ type: 'text', text: 'HANDOFF\n- Goal: x' }] } })
+  ].join('\n') + '\n')
+  assert.equal(latestAssistantAfterPrompt(f, 'Pausing for a machine restart.', since), 'HANDOFF\n- Goal: x')
+})

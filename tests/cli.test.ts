@@ -33,6 +33,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
   const err: string[] = []
   const exec: Exec = (cmd, args, input) => {
     calls.push(cmd)
+    if (cmd === 'ps' && args[0] === '-t') return { status: 0, stdout: ' 50 50 claude\n', stderr: '' }
     if (cmd === 'ps') return { status: 0, stdout: SESSIONS.filter(s => s.live !== false).map(s => `${s.pid} ${s.tty} 10:00 claude`).join('\n'), stderr: '' }
     if (cmd === 'claude' && opts.claude !== undefined) return { ...opts.claude(input ?? ''), stderr: '' }
     return { status: 1, stdout: '', stderr: `unexpected ${cmd}` }

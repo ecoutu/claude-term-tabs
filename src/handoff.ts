@@ -72,3 +72,39 @@ function readRange (fd: number, start: number, length: number): string {
   const read = readSync(fd, buf, 0, length, start)
   return buf.subarray(0, read).toString('utf8')
 }
+
+/**
+ * Newest assistant text written after the newest user message that starts with `promptStart` and is
+ * timestamped at or after `sinceMs`. Undefined when that prompt message, or any reply to it, is missing.
+ */
+export function latestAssistantAfterPrompt (path: string, promptStart: string, sinceMs: number, opts: { tailBytes?: number } = {}): string | undefined {
+  let fd: number
+  try {
+    fd = openSync(path, 'r')
+  } catch {
+    return undefined
+  }
+  try {
+    const { size } = fstatSync(fd)
+    let window = Math.max(1, opts.tailBytes ?? DEFAULT_TAIL_BYTES)
+    for (;;) {
+      const start = Math.max(0, size - window)
+      const lines = readRange(fd, start, size - start).split('\n')
+      const entries = (start > 0 ? lines.slice(1) : lines).flatMap(l => parse(l) ?? [])
+      const promptAt = findLastIndex(entries, e => e.type === 'user' && Date.parse(String(e.timestamp)) >= sinceMs && (textOf(e.message) ?? '').trimStart().startsWith(promptStart))
+      if (promptAt >= 0) {
+        const replies = entries.slice(promptAt + 1).filter(e => e.type === 'assistant').map(e => textOf(e.message)).filter((t): t is string => t !== undefined)
+        return replies.at(-1)
+      }
+      if (start === 0) return undefined
+      window *= 2
+    }
+  } finally {
+    closeSync(fd)
+  }
+}
+
+function findLastIndex<T> (items: T[], pred: (item: T) => boolean): number {
+  for (let i = items.length - 1; i >= 0; i--) if (pred(items[i])) return i
+  return -1
+}

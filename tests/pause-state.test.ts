@@ -25,3 +25,13 @@ test('straggler states exclude done, closing and closed', () => {
   for (const s of ['done', 'closing', 'closed'] as const) assert.equal(STRAGGLER_STATES.has(s), false)
   for (const s of ['busy', 'may-need-you', 'idle-no-handoff', 'in-shell-mode', 'cant-reach', 'exited', 'exit-failed'] as const) assert.equal(STRAGGLER_STATES.has(s), true)
 })
+
+test('a permission prompt (status waiting) is its own straggler state', () => {
+  assert.equal(classify({ ...base, status: 'waiting' }), 'waiting-on-you')
+  assert.equal(STRAGGLER_STATES.has('waiting-on-you'), true)
+})
+
+test('final states', async () => {
+  const { FINAL_STATES } = await import('../src/pause/state.ts')
+  assert.deepEqual([...FINAL_STATES].sort(), ['closed', 'done', 'exit-failed', 'exited'])
+})

@@ -1,5 +1,5 @@
 /** Session status as reported in ~/.claude/sessions/<pid>.json. */
-export type Status = 'idle' | 'busy' | 'shell' | 'unknown'
+export type Status = 'idle' | 'busy' | 'shell' | 'waiting' | 'unknown'
 
 /** Searchable summary of one Claude Code session transcript. */
 export interface Digest {

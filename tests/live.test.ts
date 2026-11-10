@@ -64,3 +64,9 @@ test('missing sessions directory means no live sessions', () =>
 
 test('live candidates carry their pid', () =>
   assert.equal(collectLiveSessions(opts(fakePs('5176 ttys022 01:00 claude\n')))[0].pid, 5176))
+
+test('waiting status is kept, not mapped to unknown', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ct-wait-'))
+  writeFileSync(join(dir, '9.json'), JSON.stringify({ pid: 9, sessionId: 'W', cwd: '/x', status: 'waiting', entrypoint: 'cli' }))
+  assert.equal(collectLiveSessions({ ...opts(fakePs('9 ttys001 01:00 claude\n')), sessionsDir: dir })[0].status, 'waiting')
+})

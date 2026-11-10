@@ -77,3 +77,21 @@ test('fzf gets a random API key in its environment', () => {
   assert.match(a.FZF_API_KEY ?? '', /^[0-9a-f]{64}$/)
   assert.notEqual(a.FZF_API_KEY, b.FZF_API_KEY)
 })
+
+test('a tick that throws warns and the loop keeps going', async () => {
+  const s = sim([['busy'], ['busy'], ['done']])
+  const warnings: string[] = []
+  s.deps.warn = m => { warnings.push(m) }
+  let calls = 0
+  const flaky = (r: PauseRun): PauseRun => { calls++; if (calls === 1) throw new Error('ps failed'); return s.advance(r) }
+  const end = await runStragglerUi(s.run, s.deps, s.io, flaky)
+  assert.equal(end.tracked[0].state, 'done')
+  assert.match(warnings.join('\n'), /ps failed/)
+})
+
+test('the loop ends once only final states remain', async () => {
+  const s = sim([['busy', 'busy'], ['exited', 'done']])
+  s.io.timeoutMs = POLL_MS * 100
+  await runStragglerUi(s.run, s.deps, s.io, s.advance)
+  assert.ok(s.clock() <= POLL_MS * 2)
+})

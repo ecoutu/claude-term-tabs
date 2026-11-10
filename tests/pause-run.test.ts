@@ -10,7 +10,7 @@ import type { Candidate, Pane, Status } from '../src/types.ts'
 
 const START = Date.parse('2026-11-10T20:00:00Z')
 
-interface Sim { id: string, status: Status, alive: boolean, pane: boolean }
+interface Sim { id: string, status: Status, alive: boolean, pane: boolean, front?: 'claude' | 'shell' | 'other' }
 
 function world (sims: Sim[], autoCloseOpts: { autoClose: boolean } = { autoClose: false }) {
   const root = mkdtempSync(join(tmpdir(), 'ct-pause-'))
@@ -42,9 +42,10 @@ function world (sims: Sim[], autoCloseOpts: { autoClose: boolean } = { autoClose
     snapshotDir: join(root, 'snapshots'),
     config: { stopPrompt: 'STOP-PROMPT now', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10 },
     warn: m => { log.push(`warn ${m}`) },
-    onSnapshot: () => { log.push('snapshot') }
+    onSnapshot: () => { log.push('snapshot') },
+    inFront: c => { const s = state.get(c.digest.sessionId)!; return s.front ?? (s.alive ? 'claude' : 'shell') }
   }
-  const handoff = (id: string, at = clock) => appendFileSync(transcript(id), JSON.stringify({ type: 'assistant', timestamp: new Date(at).toISOString(), message: { content: [{ type: 'text', text: 'Stopped.\nHANDOFF\n- Goal: x' }] } }) + '\n')
+  const handoff = (id: string, at = clock) => appendFileSync(transcript(id), JSON.stringify({ type: 'user', timestamp: new Date(at).toISOString(), message: { content: 'STOP-PROMPT now' } }) + '\n' + JSON.stringify({ type: 'assistant', timestamp: new Date(at).toISOString(), message: { content: [{ type: 'text', text: 'Stopped.\nHANDOFF\n- Goal: x' }] } }) + '\n')
   const grow = (id: string) => appendFileSync(transcript(id), JSON.stringify({ type: 'progress' }) + '\n')
   return {
     deps, log, root, handoff, grow,
@@ -199,7 +200,59 @@ test('summary says safe to restart only when nothing is left', () => {
 test('sendStop refuses a session in shell mode', () => {
   const w = world([{ id: 'a', status: 'shell', alive: true, pane: true }])
   const c = w.deps.collect()[0]
-  assert.equal(sendStop(c, w.deps.adapter, 'STOP', w.deps.warn), false)
+  assert.equal(sendStop(c, w.deps.adapter, 'STOP', w.deps.warn, w.deps.inFront), false)
   assert.ok(w.log.some(l => l.startsWith('warn') && l.includes('shell')))
   assert.ok(!w.log.some(l => l.startsWith('send')))
+})
+
+test('a HANDOFF line written before the stop prompt arrives does not count', () => {
+  const w = world([{ id: 'a', status: 'idle', alive: true, pane: true }], { autoClose: true })
+  let run = w.start()
+  appendFileSync(join(w.root, 'a.jsonl'), JSON.stringify({ type: 'assistant', timestamp: new Date(START + 1000).toISOString(), message: { content: [{ type: 'text', text: 'HANDOFF format:\n- Goal' }] } }) + '\n')
+  w.advance(2000)
+  run = tickPause(run, w.deps)
+  assert.equal(stateOf(run, 'a'), 'idle-no-handoff')
+  assert.ok(!w.log.some(l => l.includes('/exit')))
+})
+
+test('nothing is typed when claude is not in front of its tab', () => {
+  const w = world([{ id: 'a', status: 'idle', alive: true, pane: true, front: 'shell' }])
+  const run = w.start()
+  assert.ok(!w.log.some(l => l.startsWith('send')))
+  assert.equal(stateOf(run, 'a'), 'cant-reach')
+})
+
+test('a waiting session (permission prompt) is never typed into', () => {
+  const w = world([{ id: 'a', status: 'waiting', alive: true, pane: true }])
+  const run = w.start()
+  assert.ok(!w.log.some(l => l.startsWith('send')))
+  assert.equal(stateOf(run, 'a'), 'waiting-on-you')
+  assert.equal(sendStop(w.deps.collect()[0], w.deps.adapter, 'STOP', w.deps.warn, w.deps.inFront), false)
+})
+
+test('the tab is left open when something other than the shell is in front after exit', () => {
+  const w = world([{ id: 'a', status: 'idle', alive: true, pane: true }], { autoClose: true })
+  let run = w.start()
+  w.handoff('a')
+  run = tickPause(run, w.deps)
+  w.set('a', { alive: false, front: 'other' })
+  run = tickPause(run, w.deps)
+  assert.equal(stateOf(run, 'a'), 'done')
+  assert.ok(!w.log.some(l => l.startsWith('close')))
+})
+
+test('exit failed still counts as a written HANDOFF', () => {
+  const w = world([{ id: 'a', status: 'idle', alive: true, pane: true }], { autoClose: true })
+  let run = w.start()
+  w.handoff('a')
+  run = tickPause(run, w.deps)
+  w.advance(10_001)
+  run = tickPause(run, w.deps)
+  assert.equal(stateOf(run, 'a'), 'exit-failed')
+  const file = join(w.root, 'snapshots', readdirSync(join(w.root, 'snapshots'))[0])
+  assert.equal(JSON.parse(readFileSync(file, 'utf8')).sessions[0].handoffWritten, true)
+  const sum = pauseSummary(run)
+  assert.match(sum.text, /1 of 1 sessions wrote a HANDOFF/)
+  assert.match(sum.text, /could not be closed/)
+  assert.doesNotMatch(sum.text, /have no HANDOFF/)
 })

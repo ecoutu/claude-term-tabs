@@ -1,5 +1,6 @@
 import type { Config } from '../config.ts'
-import { hasHandoff, latestAssistantText } from '../handoff.ts'
+import type { Front } from '../foreground.ts'
+import { hasHandoff, latestAssistantAfterPrompt } from '../handoff.ts'
 import { cleanField, formatAge } from '../picker.ts'
 import { pruneSnapshots, saveSnapshot, snapshotFrom, type Snapshot } from '../snapshot.ts'
 import type { TerminalAdapter } from '../terminals/adapter.ts'
@@ -10,6 +11,8 @@ import { classify, STRAGGLER_STATES, type PauseState } from './state.ts'
 export const EXIT_GRACE_MS = 10_000
 const SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const EXIT_COMMAND = '/exit'
+const PROMPT_START_CHARS = 60
+const TYPEABLE: ReadonlySet<string> = new Set(['idle', 'busy'])
 
 const LABELS: Readonly<Record<PauseState, string>> = {
   done: 'done',
@@ -18,6 +21,7 @@ const LABELS: Readonly<Record<PauseState, string>> = {
   'exit-failed': 'exit failed',
   busy: 'busy',
   'may-need-you': 'may need you',
+  'waiting-on-you': 'waiting on you',
   'idle-no-handoff': 'idle, no HANDOFF',
   'in-shell-mode': 'in shell mode',
   'cant-reach': "can't reach",
@@ -49,6 +53,7 @@ export interface PauseDeps {
   config: Config
   warn: (m: string) => void
   onSnapshot?: (path: string) => void
+  inFront: (c: Candidate) => Front
 }
 
 /** Snapshot every live session, then type the stop prompt into each one that can take it. */
@@ -59,9 +64,11 @@ export function startPause (deps: PauseDeps, opts: { autoClose: boolean }): Paus
   const snapshot = snapshotFrom(cands, deps.adapter?.name, now)
   deps.onSnapshot?.(saveSnapshot(deps.snapshotDir, snapshot))
   const tracked = cands.map(cand => {
-    if (cand.status === 'idle' || cand.status === 'busy') sendStop(cand, deps.adapter, deps.config.stopPrompt, deps.warn)
+    const typeable = TYPEABLE.has(cand.status)
+    const sent = typeable && sendStop(cand, deps.adapter, deps.config.stopPrompt, deps.warn, deps.inFront)
     const size = safeSize(deps, deps.transcriptOf(cand))
-    const state = classify({ alive: true, status: cand.status, hasPane: canType(cand, deps.adapter), handoff: false, msSinceGrowth: 0 })
+    const classified = classify({ alive: true, status: cand.status, hasPane: canType(cand, deps.adapter), handoff: false, msSinceGrowth: 0 })
+    const state: PauseState = typeable && !sent ? 'cant-reach' : classified
     return { cand, state, since: now, lastSize: size, lastGrowth: now }
   })
   return { startedAt: now, snapshot, tracked, autoClose: opts.autoClose }
@@ -80,15 +87,23 @@ export function tickPause (run: PauseRun, deps: PauseDeps): PauseRun {
   return { ...run, snapshot, tracked }
 }
 
-/** Type the stop prompt into one session. Refuses (and warns) for shell mode or no reachable pane. */
-export function sendStop (cand: Candidate, adapter: TerminalAdapter | undefined, prompt: string, warn: (m: string) => void): boolean {
+/** Type the stop prompt into one session. Refuses (and warns) unless it is idle or busy, reachable, and Claude is in front. */
+export function sendStop (cand: Candidate, adapter: TerminalAdapter | undefined, prompt: string, warn: (m: string) => void, inFront: (c: Candidate) => Front): boolean {
   const name = cand.digest.title ?? cand.digest.sessionId
   if (cand.status === 'shell') {
     warn(`claude-tabs: ${name} is in shell mode; not typing into it`)
     return false
   }
+  if (!TYPEABLE.has(cand.status)) {
+    warn(`claude-tabs: ${name} is ${cand.status === 'waiting' ? 'waiting on a prompt' : `in status ${cand.status}`}; not typing into it`)
+    return false
+  }
   if (adapter === undefined || cand.pane === undefined) {
     warn(`claude-tabs: ${name} is not in a supported terminal pane`)
+    return false
+  }
+  if (inFront(cand) !== 'claude') {
+    warn(`claude-tabs: Claude is not in front of the tab for ${name}; not typing into it`)
     return false
   }
   try {
@@ -114,11 +129,14 @@ export function pauseSummary (run: PauseRun): { text: string, exitCode: number }
   const total = run.tracked.length
   const done = run.tracked.filter(t => isDone(t.state)).length
   const closed = run.tracked.filter(t => t.state === 'closed').length
-  const left = stragglerLines(run, Number.POSITIVE_INFINITY).map(l => l.split('\t')[1].split(' · ').slice(0, 3).join(' · '))
+  const short = (t: Tracked) => [t.cand.digest.title ?? t.cand.digest.sessionId, t.cand.digest.repo, LABELS[t.state]].map(cleanField).join(' · ')
+  const left = run.tracked.filter(t => STRAGGLER_STATES.has(t.state) && t.state !== 'exit-failed').map(short)
+  const unclosed = run.tracked.filter(t => t.state === 'exit-failed').map(short)
   const head = `${done} of ${total} sessions wrote a HANDOFF${run.autoClose ? `, ${closed} closed` : ''}.`
-  if (left.length === 0) return { text: `${head}\nSafe to restart.`, exitCode: 0 }
+  const failedLines = unclosed.length > 0 ? [`${unclosed.length} sessions could not be closed; close them yourself:`, ...unclosed.map(l => `  - ${l}`)] : []
+  if (left.length === 0) return { text: [head, ...failedLines, 'Safe to restart.'].join('\n'), exitCode: 0 }
   return {
-    text: [head, ...left.map(l => `  - ${l}`), `${left.length} sessions have no HANDOFF; they are still recorded.`].join('\n'),
+    text: [head, ...failedLines, ...left.map(l => `  - ${l}`), `${left.length} sessions have no HANDOFF; they are still recorded.`].join('\n'),
     exitCode: 1
   }
 }
@@ -131,10 +149,10 @@ function step (t: Tracked, cur: Candidate | undefined, run: PauseRun, deps: Paus
   const size = safeSize(deps, path)
   const lastGrowth = size !== t.lastSize ? now : t.lastGrowth
   const alive = cur !== undefined
-  const handoff = hasHandoff(latestAssistantText(path, run.startedAt))
+  const handoff = hasHandoff(latestAssistantAfterPrompt(path, promptStart(deps.config.stopPrompt), run.startedAt))
   const state = classify({ alive, status: cand.status, hasPane: canType(cand, deps.adapter), handoff, msSinceGrowth: now - lastGrowth })
   const next: Tracked = { ...t, cand, state, since: state === t.state ? t.since : now, lastSize: size, lastGrowth }
-  if (state !== 'done' || !run.autoClose || !alive || cand.status !== 'idle' || !canType(cand, deps.adapter)) return next
+  if (state !== 'done' || !run.autoClose || !alive || cand.status !== 'idle' || !canType(cand, deps.adapter) || deps.inFront(cand) !== 'claude') return next
   try {
     deps.adapter?.sendText(cand.pane as NonNullable<Candidate['pane']>, EXIT_COMMAND)
     return { ...next, state: 'closing', since: now, closeRequestedAt: now }
@@ -147,6 +165,10 @@ function step (t: Tracked, cur: Candidate | undefined, run: PauseRun, deps: Paus
 function stepClosing (t: Tracked, deps: PauseDeps, now: number): Tracked {
   const pid = t.cand.pid
   if (pid !== undefined && !deps.isAlive(pid)) {
+    if (deps.inFront(t.cand) !== 'shell') {
+      deps.warn(`claude-tabs: ${t.cand.digest.title ?? t.cand.digest.sessionId} exited, but something other than its shell is in front; leaving the tab open`)
+      return { ...t, state: 'done', since: now }
+    }
     try {
       if (t.cand.pane !== undefined) deps.adapter?.closePane(t.cand.pane)
     } catch (err) {
@@ -159,7 +181,11 @@ function stepClosing (t: Tracked, deps: PauseDeps, now: number): Tracked {
 }
 
 function isDone (s: PauseState): boolean {
-  return s === 'done' || s === 'closing' || s === 'closed'
+  return s === 'done' || s === 'closing' || s === 'closed' || s === 'exit-failed'
+}
+
+function promptStart (prompt: string): string {
+  return prompt.trimStart().split('\n')[0].slice(0, PROMPT_START_CHARS)
 }
 
 function canType (c: Candidate, adapter: TerminalAdapter | undefined): boolean {

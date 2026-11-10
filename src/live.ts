@@ -5,7 +5,7 @@ import { transcriptPath } from './paths.ts'
 import { extractDigest } from './transcript.ts'
 import type { Candidate, Exec, Status } from './types.ts'
 
-const STATUSES: ReadonlySet<string> = new Set(['idle', 'busy', 'shell'])
+const STATUSES: ReadonlySet<string> = new Set(['idle', 'busy', 'shell', 'waiting'])
 const PID_REUSE_SLACK_MS = 120_000
 
 interface PidFile { pid: number, sessionId: string, cwd: string, status?: string, entrypoint?: string, startedAt?: number }

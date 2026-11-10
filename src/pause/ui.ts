@@ -7,6 +7,7 @@ import { writeOwnerOnly } from '../fsutil.ts'
 import { createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { tickPause, stragglerLines, type PauseDeps, type PauseRun } from './run.ts'
+import { FINAL_STATES } from './state.ts'
 
 /** How often the straggler list refreshes. */
 export const POLL_MS = 3000
@@ -64,17 +65,24 @@ export async function runStragglerUi (run: PauseRun, deps: PauseDeps, io: UiIo, 
   const deadline = deps.now() + io.timeoutMs
   let current = run
   const ui = io.hasFzf && io.isTty && process.env.CT_NO_REAL_EXEC !== '1' ? await fzfUi(io, stragglerLines(current, deps.now())) : plainUi(io, deps)
-  await ui.update(stragglerLines(current, deps.now()))
-  while (!ui.closed()) {
-    await io.sleep(POLL_MS)
-    if (ui.closed()) break
-    current = advance(current, deps)
-    const lines = stragglerLines(current, deps.now())
-    const closing = current.tracked.some(t => t.state === 'closing')
-    if ((lines.length === 0 && !closing) || deps.now() >= deadline) break
-    await ui.update(lines)
+  try {
+    await ui.update(stragglerLines(current, deps.now()))
+    while (!ui.closed()) {
+      await io.sleep(POLL_MS)
+      if (ui.closed()) break
+      try {
+        current = advance(current, deps)
+      } catch (err) {
+        deps.warn(`claude-tabs: refresh failed, retrying: ${(err as Error).message}`)
+        continue
+      }
+      const pending = current.tracked.some(t => !FINAL_STATES.has(t.state))
+      if (!pending || deps.now() >= deadline) break
+      await ui.update(stragglerLines(current, deps.now()))
+    }
+  } finally {
+    await ui.finish()
   }
-  await ui.finish()
   return current
 }
 

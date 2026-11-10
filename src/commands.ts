@@ -3,6 +3,8 @@ import { parseArgs as parseNodeArgs } from 'node:util'
 import type { Deps } from './cli.ts'
 import { loadConfig } from './config.ts'
 import { liveWithPanes } from './discover.ts'
+import { inFrontOf, type Front } from './foreground.ts'
+import type { Candidate } from './types.ts'
 import { transcriptFor } from './live.ts'
 import { pauseSummary, sendStop, startPause, type PauseDeps } from './pause/run.ts'
 import { runStragglerUi } from './pause/ui.ts'
@@ -45,7 +47,8 @@ async function pause (argv: string[], deps: Deps): Promise<number> {
     snapshotDir: deps.dirs.snapshots,
     config,
     warn: deps.stderr,
-    onSnapshot: path => { snapshotPath = path }
+    onSnapshot: path => { snapshotPath = path },
+    inFront: c => frontOf(deps, c)
   }
   let snapshotPath = ''
   const run = startPause(pdeps, { autoClose: values['auto-close'] })
@@ -99,7 +102,11 @@ function sendStopCommand (argv: string[], deps: Deps): number {
     deps.stderr(`claude-tabs: session ${id} is not running`)
     return EXIT_NONE
   }
-  return sendStop(c, adapter, loadConfig(deps.dirs.config).stopPrompt, deps.stderr) ? EXIT_OK : EXIT_NONE
+  return sendStop(c, adapter, loadConfig(deps.dirs.config).stopPrompt, deps.stderr, x => frontOf(deps, x)) ? EXIT_OK : EXIT_NONE
+}
+
+function frontOf (deps: Deps, c: Candidate): Front {
+  return c.tty !== undefined ? inFrontOf(deps.exec, c.tty) : 'other'
 }
 
 function requireId (argv: string[]): string {
