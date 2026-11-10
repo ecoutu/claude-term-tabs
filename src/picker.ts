@@ -29,7 +29,7 @@ export function formatPickerLine (c: Candidate, summary?: string, now: number = 
     c.pane !== undefined ? tabLabel(c) : undefined,
     c.dirGone === true ? 'dir gone' : undefined,
     summary
-  ].filter((f): f is string => f !== undefined && f !== '').map(flatten)
+  ].filter((f): f is string => f !== undefined && f !== '').map(cleanField)
   return `${d.sessionId}\t${fields.join(SEP)}`
 }
 
@@ -75,7 +75,7 @@ function previewText (d: Digest): string {
     `first:  ${d.firstPrompt ?? ''}`,
     `last:   ${d.lastPrompt ?? ''}`,
     d.note !== undefined ? `note:   ${d.note}` : ''
-  ].map(flatten).join('\n')
+  ].map(cleanField).join('\n')
 }
 
 function shellQuote (s: string): string {
@@ -86,6 +86,7 @@ function tabLabel (c: Candidate): string {
   return `tab ${c.pane?.tabIndex ?? '?'}`
 }
 
-function flatten (s: string): string {
+/** Flatten control characters and escape sequences out of a display field. */
+export function cleanField (s: string): string {
   return s.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?/g, '').replace(/[\x00-\x1f\x7f-\x9f]+/g, ' ').replace(/ {2,}/g, ' ').trim()
 }
