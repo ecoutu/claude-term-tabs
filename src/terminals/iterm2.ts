@@ -23,7 +23,7 @@ const LIST_SCRIPT = `function run () {
   return JSON.stringify(out)
 }`
 
-const FOCUS_SCRIPT = `function run (argv) {
+const sessionScript = (onFound: string): string => `function run (argv) {
   const app = Application('iTerm2')
   for (const w of app.windows()) {
     let tabs
@@ -31,10 +31,7 @@ const FOCUS_SCRIPT = `function run (argv) {
     for (const t of tabs) {
       for (const s of t.sessions()) {
         if (s.id() === argv[0]) {
-          s.select()
-          t.select()
-          w.select()
-          app.activate()
+          ${onFound}
           return 'ok'
         }
       }
@@ -43,12 +40,18 @@ const FOCUS_SCRIPT = `function run (argv) {
   throw new Error('session not found: ' + argv[0])
 }`
 
+const FOCUS_SCRIPT = sessionScript('s.select(); t.select(); w.select(); app.activate()')
+const SEND_SCRIPT = sessionScript('s.write({ text: argv[1] })')
+const CLOSE_SCRIPT = sessionScript('s.close()')
+
 const OPEN_SCRIPT = `function run (argv) {
   const app = Application('iTerm2')
   const quoted = "'" + argv[0].split("'").join("'\\\\''") + "'"
-  const w = app.currentWindow() || app.createWindowWithDefaultProfile()
-  const t = w.createTabWithDefaultProfile()
-  t.currentSession().write({ text: 'cd ' + quoted + ' && ' + argv[1] })
+  const fresh = argv[2] === 'new-window' || !app.currentWindow()
+  const session = fresh
+    ? app.createWindowWithDefaultProfile().currentSession()
+    : app.currentWindow().createTabWithDefaultProfile().currentSession()
+  session.write({ text: 'cd ' + quoted + ' && ' + argv[1] })
   app.activate()
   return 'ok'
 }`
@@ -67,6 +70,8 @@ export function iterm2Adapter (exec: Exec): TerminalAdapter {
     name: 'iterm2',
     listPanes: () => JSON.parse(jxa(LIST_SCRIPT)) as Pane[],
     focus: (pane) => { jxa(FOCUS_SCRIPT, [pane.id]) },
-    openPane: (cwd, command) => { jxa(OPEN_SCRIPT, [cwd, command]) }
+    sendText: (pane, text) => { jxa(SEND_SCRIPT, [pane.id, text]) },
+    closePane: (pane) => { jxa(CLOSE_SCRIPT, [pane.id]) },
+    openPane: (cwd, command, opts) => { jxa(OPEN_SCRIPT, [cwd, command, opts?.newWindow === true ? 'new-window' : 'tab']) }
   }
 }

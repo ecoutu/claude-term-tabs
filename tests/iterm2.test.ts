@@ -33,7 +33,7 @@ test('focus passes the session id as an argument, not script text', () => {
 test('openPane passes cwd and command as arguments', () => {
   const { exec, calls } = recorder()
   iterm2Adapter(exec).openPane("/x/it's", 'claude --resume S')
-  assert.deepEqual(calls[0].args.slice(-2), ["/x/it's", 'claude --resume S'])
+  assert.deepEqual(calls[0].args.slice(-3, -1), ["/x/it's", 'claude --resume S'])
 })
 
 test('automation permission denial names the fix', () => {
@@ -44,4 +44,28 @@ test('automation permission denial names the fix', () => {
 test('other osascript failures throw with stderr', () => {
   const { exec } = recorder('', 1, 'boom')
   assert.throws(() => iterm2Adapter(exec).listPanes(), /boom/)
+})
+
+const pane: Pane = { id: 'SID-1', tty: '/dev/ttys004', title: 't', windowId: '1', windowIndex: 1, tabIndex: 1 }
+
+test('sendText passes the session id and text verbatim as arguments', () => {
+  const { exec, calls } = recorder()
+  const text = 'Pause "now"\nthen $HOME'
+  iterm2Adapter(exec).sendText(pane, text)
+  assert.deepEqual(calls[0].args.slice(-2), ['SID-1', text])
+  assert.ok(!calls[0].args[3].includes('Pause'))
+})
+
+test('closePane passes the session id', () => {
+  const { exec, calls } = recorder()
+  iterm2Adapter(exec).closePane(pane)
+  assert.equal(calls[0].args[calls[0].args.length - 1], 'SID-1')
+})
+
+test('openPane with newWindow adds a new-window argument', () => {
+  const { exec, calls } = recorder()
+  iterm2Adapter(exec).openPane('/x', 'cmd', { newWindow: true })
+  assert.deepEqual(calls[0].args.slice(-3), ['/x', 'cmd', 'new-window'])
+  iterm2Adapter(exec).openPane('/x', 'cmd')
+  assert.deepEqual(calls[1].args.slice(-3), ['/x', 'cmd', 'tab'])
 })

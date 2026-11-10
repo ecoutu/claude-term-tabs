@@ -2,12 +2,14 @@ import type { Exec, Pane } from '../types.ts'
 import { iterm2Adapter } from './iterm2.ts'
 import { weztermAdapter } from './wezterm.ts'
 
-/** A terminal that can list its panes, focus one, and open a new one. */
+/** A terminal that can list, focus, type into, close and open panes. */
 export interface TerminalAdapter {
   name: 'iterm2' | 'wezterm'
   listPanes(): Pane[]
   focus(pane: Pane): void
-  openPane(cwd: string, command: string): void
+  sendText(pane: Pane, text: string): void
+  closePane(pane: Pane): void
+  openPane(cwd: string, command: string, opts?: { newWindow?: boolean }): void
 }
 
 const FACTORIES: Readonly<Record<TerminalAdapter['name'], (exec: Exec) => TerminalAdapter>> = {
