@@ -33,6 +33,7 @@ export interface Candidate {
   tty?: string
   pane?: Pane
   dirGone?: boolean
+  pid?: number
 }
 
 /** Result of running an external command. */

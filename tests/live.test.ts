@@ -61,3 +61,6 @@ test('a pid whose process started after the session file is a reused pid', () =>
 
 test('missing sessions directory means no live sessions', () =>
   assert.deepEqual(collectLiveSessions({ ...opts(fakePs('')), sessionsDir: '/nope/sessions' }), []))
+
+test('live candidates carry their pid', () =>
+  assert.equal(collectLiveSessions(opts(fakePs('5176 ttys022 01:00 claude\n')))[0].pid, 5176))

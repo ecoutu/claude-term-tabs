@@ -28,6 +28,7 @@ export function collectLiveSessions (opts: {
       return {
         digest,
         live: true,
+        pid: f.pid,
         status: toStatus(f.status),
         tty: procs.get(f.pid)?.tty
       }
