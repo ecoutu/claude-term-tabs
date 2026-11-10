@@ -1,11 +1,11 @@
 import { readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join, normalize } from 'node:path'
 import type { DigestCache } from './cache.ts'
 import { extractDigest } from './transcript.ts'
 import type { Candidate } from './types.ts'
 
 const DEFAULT_RESUME = 'claude --resume {id}'
-const SESSION_ID = /^[A-Za-z0-9-]+$/
+const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/
 
 /** Closed sessions: every top-level transcript under projectsDir whose id is not live. */
 export function listClosedSessions (opts: {
@@ -22,7 +22,7 @@ export function listClosedSessions (opts: {
     .filter(t => !opts.liveIds.has(t.sessionId))
     .map(t => {
       const digest = opts.cache.get(t.path, () => extractDigest(t.path, { sessionId: t.sessionId }))
-      return { digest, live: false, status: 'unknown' as const, dirGone: digest.cwd === '' || !opts.dirExists(digest.cwd) }
+      return { digest, live: false, status: 'unknown' as const, dirGone: !isResumableDir(digest.cwd, opts.dirExists) }
     })
 }
 
@@ -41,4 +41,9 @@ export function dirExists (p: string): boolean {
   } catch {
     return false
   }
+}
+
+/** True when cwd is an absolute, normalized path to an existing directory. */
+export function isResumableDir (cwd: string, exists: (p: string) => boolean): boolean {
+  return cwd !== '' && isAbsolute(cwd) && normalize(cwd) === cwd && exists(cwd)
 }

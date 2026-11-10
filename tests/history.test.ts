@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { listClosedSessions, resumeCommand } from '../src/history.ts'
+import { isResumableDir, listClosedSessions, resumeCommand } from '../src/history.ts'
 import { DigestCache } from '../src/cache.ts'
 import { fixture } from './helpers.ts'
 
@@ -30,3 +30,13 @@ test('configured resume command substitutes the id', () =>
 
 test('template without {id} throws', () =>
   assert.throws(() => resumeCommand({ resumeCommand: 'claude' }, 'S'), /\{id\}/))
+
+test('an id that looks like an option is refused', () =>
+  assert.throws(() => resumeCommand({}, '--dangerous'), /unexpected session id/))
+
+test('a relative or unnormalized cwd is never resumable', () => {
+  assert.equal(isResumableDir('relative/path', () => true), false)
+  assert.equal(isResumableDir('/a/../etc', () => true), false)
+  assert.equal(isResumableDir('/a/b', () => true), true)
+  assert.equal(isResumableDir('/a/b', () => false), false)
+})
