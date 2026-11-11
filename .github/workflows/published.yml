@@ -1,0 +1,39 @@
+name: Published package
+
+# Installs claude-term-tabs from npm, the way a user would, and runs it: catches a broken release or registry problem
+# that the pre-release package test can't see. A failed scheduled run notifies whoever last edited the cron line.
+# GitHub turns the schedule off after 60 days without activity in the repo; re-enable it under Actions if so.
+on:
+  schedule:
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: npx runs it without installing
+        run: |
+          help="$(npx --yes claude-term-tabs@latest --help)"
+          [[ "$help" == 'usage: ctt '* ]]
+      - name: A global install provides both commands
+        run: |
+          npm install --global claude-term-tabs@latest
+          words="$(ctt --complete bash ctt pa)"
+          test "$words" = pause
+          script="$(claude-term-tabs completion bash)"
+          grep -q "'claude-term-tabs' --complete bash" <<< "$script"
+      - name: The latest version has provenance, and its signatures verify
+        run: |
+          # npm audit signatures passes packages without attestations, so require one explicitly.
+          npm view claude-term-tabs@latest dist.attestations.provenance.predicateType | grep -q slsa.dev/provenance
+          mkdir verify && cd verify
+          npm init --yes > /dev/null
+          npm install claude-term-tabs@latest
+          npm audit signatures
