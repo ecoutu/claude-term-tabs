@@ -10,9 +10,12 @@ export function weztermAdapter (exec: Exec, shell: string = process.env.SHELL ??
     if (r.status !== 0) throw new Error(`wezterm cli ${args[0]} failed (${r.status}): ${r.stderr.trim()}`)
     return r.stdout
   }
+  const list = (): WeztermPane[] => JSON.parse(cli(['list', '--format', 'json'])) as WeztermPane[]
+  // A spawn without --window-id lands in the caller's window, so tabs that follow a new window go there explicitly.
+  let newWindowPane: string | undefined
   return {
     name: 'wezterm',
-    listPanes: () => toPanes(JSON.parse(cli(['list', '--format', 'json'])) as WeztermPane[]),
+    listPanes: () => toPanes(list()),
     focus: (pane) => { cli(['activate-pane', '--pane-id', pane.id]) },
     sendText: (pane, text) => {
       cli(['send-text', '--pane-id', pane.id, text])
@@ -20,7 +23,13 @@ export function weztermAdapter (exec: Exec, shell: string = process.env.SHELL ??
     },
     closePane: (pane) => { cli(['kill-pane', '--pane-id', pane.id]) },
     openPane: (cwd, command, opts) => {
-      return cli(['spawn', ...(opts?.newWindow === true ? ['--new-window'] : []), '--cwd', cwd, '--', shell, '-lc', `${command}; exec ${shell} -l`]).trim()
+      const newWindow = opts?.newWindow === true
+      const windowId = newWindow || newWindowPane === undefined ? undefined : list().find(p => String(p.pane_id) === newWindowPane)?.window_id
+      const where = newWindow ? ['--new-window'] : windowId !== undefined ? ['--window-id', String(windowId)] : []
+      if (newWindow) newWindowPane = undefined
+      const id = cli(['spawn', ...where, '--cwd', cwd, '--', shell, '-lc', `${command}; exec ${shell} -l`]).trim()
+      if (newWindow) newWindowPane = id
+      return id
     }
   }
 }
