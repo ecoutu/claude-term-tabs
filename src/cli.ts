@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { closeSync, openSync, readSync, writeSync } from 'node:fs'
+import { closeSync, openSync, readSync } from 'node:fs'
+import { isatty } from 'node:tty'
 import { parseFlags, SEARCH_FLAGS } from './args.ts'
 import { DigestCache } from './cache.ts'
 import { loadConfig, type Config } from './config.ts'
@@ -7,6 +8,7 @@ import { realExec } from './exec.ts'
 import { dirExists as realDirExists, listClosedSessions, resumeCommand } from './history.ts'
 import { collectLiveSessions } from './live.ts'
 import { askHaiku, MAX_LLM_CANDIDATES } from './llm.ts'
+import { lineWriter } from './output.ts'
 import { defaultDirs } from './paths.ts'
 import { formatPickerLine, pick as realPick } from './picker.ts'
 import { clearWinner, rankLocal, tokenize } from './score.ts'
@@ -257,16 +259,16 @@ function promptTty (question: string): string {
  */
 export function realDeps (exec: Exec = realExec): Deps {
   let fzf: boolean | undefined
-  const write = (fd: number) => (s: string) => { writeSync(fd, `${s}\n`) }
   const deps: Deps = {
     exec,
     execTty: realExecTty,
     dirs: defaultDirs,
-    stdout: write(1),
-    stderr: write(2),
+    stdout: lineWriter(1),
+    stderr: lineWriter(2),
     prompt: promptTty,
     now: Date.now,
-    isTty: process.stdout.isTTY === true,
+    // isatty, not process.stdout.isTTY: touching process.stdout makes a piped fd 1 non-blocking.
+    isTty: isatty(1),
     get hasFzf () {
       fzf ??= exec('sh', ['-c', 'command -v fzf']).status === 0
       return fzf
