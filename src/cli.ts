@@ -119,7 +119,7 @@ export function run (opts: Options, deps: Deps): number {
 
 function search (ctx: Context, pool: Candidate[]): number {
   const { opts, deps } = ctx
-  if (tokenize(opts.query).length === 0) return choose(ctx, byRecency(pool.filter(c => c.live)), new Map())
+  if (tokenize(opts.query).length === 0) return choose(ctx, byRecency(opts.all ? pool : pool.filter(c => c.live)), new Map())
   const ranked = rankLocal(opts.query, pool, deps.now())
   const winner = clearWinner(ranked)
   if (winner !== undefined) return confident(ctx, winner)

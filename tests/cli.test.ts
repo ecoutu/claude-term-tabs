@@ -105,6 +105,14 @@ test('filler-only query opens the picker over all live sessions', () => {
   assert.ok(!w.calls.includes('claude'))
 })
 
+test('--all with no query offers closed sessions too', () => {
+  const w = world()
+  let offered: string[] = []
+  w.deps.pick = cands => { offered = cands.map(c => c.digest.sessionId); return undefined }
+  run(parseArgs(['--all']), w.deps)
+  assert.deepEqual([...offered].sort(), ['csv-a', 'csv-b', 'envoy-id', 'old-id'])
+})
+
 test('ambiguous query asks haiku; a single id switches', () => {
   const w = world({ claude: haiku(['csv-b']) })
   assert.equal(run(parseArgs(['csv', 'ingestion']), w.deps), 0)
