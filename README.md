@@ -142,16 +142,17 @@ npm test
 npm run test:package   # packs, installs and runs the npm package
 ```
 
-No runtime dependencies; Node runs the TypeScript directly. [CONTRIBUTING.md](CONTRIBUTING.md) has the commit and
-pull request rules.
+No runtime dependencies. A clone runs the TypeScript directly; the npm package ships it built to JavaScript.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the commit and pull request rules.
 
 ### Releases
 
 Every push to `main` runs CI, then semantic-release reads the conventional commit
-messages since the last tag and, when any warrant it, tags the next version (`fix:` patch,
-`feat:` minor, `BREAKING CHANGE:` major), adds the notes to [CHANGELOG.md](CHANGELOG.md) and
-publishes a GitHub release. Nothing is published to npm, and `package.json` keeps a placeholder
-version; the git tag is the version.
+messages since the last tag and, when any warrant it, tags the next version (`fix:`, `perf:` or
+`docs(readme):` patch, `feat:` minor, `!` or `BREAKING CHANGE:` major), adds the notes to
+[CHANGELOG.md](CHANGELOG.md), publishes the package to npm with provenance and creates a GitHub
+release. `package.json` keeps a placeholder version; the git tag is the version.
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how the npm publish works.
 
 ### Manual checks
 
