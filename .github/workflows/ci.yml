@@ -21,7 +21,8 @@ jobs:
           node-version: 24
           cache: npm
       - id: install
-        run: npm ci
+        # Install scripts don't run, as in release.yml, so CI catches a dependency that needs one.
+        run: npm ci --ignore-scripts
       - run: npm run check
       # Run the tests even when the type-check fails, so one CI run reports both; not when the install failed.
       - run: npm test

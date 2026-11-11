@@ -35,16 +35,20 @@ jobs:
           TOKEN: ${{ secrets.PROJECT_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then echo "::error::set the PROJECT_TOKEN secret"; exit 1; fi
+      # No credentials stay in .git/config: semantic-release pushes through a URL it builds from GITHUB_TOKEN.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.PROJECT_TOKEN }}
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # Install scripts don't run here (as in ci.yml), so no dependency can add code before the release step.
+      - run: npm ci --ignore-scripts
+      # Only this step gets the token, but semantic-release, its plugins and npm publish's prepack build (tsc) all run
+      # here and could read it. GITHUB_TOKEN must stay the only token variable: semantic-release prefers GIT_CREDENTIALS
+      # and GH_TOKEN for its push URL, and the release commit and tag push without the git hooks.
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_TOKEN }}
