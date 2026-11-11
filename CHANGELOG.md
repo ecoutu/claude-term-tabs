@@ -1,3 +1,13 @@
+## [2.1.4](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.3...v2.1.4) (2026-11-11)
+
+### Bug Fixes
+
+* **pause:** stop reporting a failed list update when the fzf list closes ([c2dfd1b](https://github.com/ecoutu/claude-term-tabs/commit/c2dfd1b8e57aa8b3958e959c510919991b432ec6))
+
+### Documentation
+
+* **readme:** show pause --auto-close and resume in the demo GIF ([2657fd4](https://github.com/ecoutu/claude-term-tabs/commit/2657fd4d91ac665958244a662e79f32d52aad9e9))
+
 ## [2.1.3](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.2...v2.1.3) (2026-11-11)
 
 ### Bug Fixes
