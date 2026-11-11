@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.0...v2.1.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **cli:** warn when ctt completion writes a script that can't find claude-term-tabs ([1ccc13a](https://github.com/ecoutu/claude-term-tabs/commit/1ccc13a26e95f520440792564b3fbdc95cb7fdcc))
+
 # [2.1.0](https://github.com/ecoutu/claude-term-tabs/compare/v2.0.0...v2.1.0) (2026-11-11)
 
 
