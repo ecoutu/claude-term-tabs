@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { detectAdapter } from '../src/terminals/adapter.ts'
+import { detectAdapter, TERMINAL_NAMES } from '../src/terminals/adapter.ts'
 import type { Exec } from '../src/types.ts'
 
 const exec = (running: string[]): Exec => (cmd, args) => {
@@ -17,6 +17,14 @@ test('override wins', () =>
 
 test('unknown override throws', () =>
   assert.throws(() => detectAdapter({}, exec([]), 'kitty'), /kitty/))
+
+test('names inherited from Object are unknown terminals too', () => {
+  for (const name of ['constructor', 'toString', '__proto__']) {
+    assert.throws(() => detectAdapter({}, exec([]), name), new RegExp(`unknown terminal "${name}" \\(supported: iterm2, wezterm\\)`))
+  }
+  assert.deepEqual(TERMINAL_NAMES, ['iterm2', 'wezterm'])
+  assert.ok(Object.isFrozen(TERMINAL_NAMES))
+})
 
 test('vscode falls back to a running iTerm2', () =>
   assert.equal(detectAdapter({ TERM_PROGRAM: 'vscode' }, exec(['iTerm2']))?.name, 'iterm2'))

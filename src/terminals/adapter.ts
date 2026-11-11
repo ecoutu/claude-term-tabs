@@ -19,6 +19,9 @@ const FACTORIES: Readonly<Record<TerminalAdapter['name'], (exec: Exec) => Termin
   wezterm: weztermAdapter
 }
 
+/** The names `--terminal` accepts. */
+export const TERMINAL_NAMES: ReadonlyArray<TerminalAdapter['name']> = Object.freeze(Object.keys(FACTORIES) as Array<TerminalAdapter['name']>)
+
 const BY_TERM_PROGRAM: Readonly<Record<string, TerminalAdapter['name']>> = {
   'iTerm.app': 'iterm2',
   WezTerm: 'wezterm'
@@ -30,8 +33,9 @@ const BY_TERM_PROGRAM: Readonly<Record<string, TerminalAdapter['name']>> = {
  */
 export function detectAdapter (env: Record<string, string | undefined>, exec: Exec, override?: string): TerminalAdapter | undefined {
   if (override !== undefined) {
-    if (!(override in FACTORIES)) throw new Error(`unknown terminal "${override}" (supported: ${Object.keys(FACTORIES).join(', ')})`)
-    return FACTORIES[override as TerminalAdapter['name']](exec)
+    const name = TERMINAL_NAMES.find(n => n === override)
+    if (name === undefined) throw new Error(`unknown terminal "${override}" (supported: ${TERMINAL_NAMES.join(', ')})`)
+    return FACTORIES[name](exec)
   }
   const fromEnv = BY_TERM_PROGRAM[env.TERM_PROGRAM ?? '']
   if (fromEnv !== undefined) return FACTORIES[fromEnv](exec)
