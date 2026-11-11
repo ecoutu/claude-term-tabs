@@ -22,6 +22,21 @@ ln -s claude-tabs ~/bin/ct
 The first switch in iTerm2 asks macOS for permission to control iTerm2. Allow it, or grant it
 later in System Settings > Privacy & Security > Automation.
 
+### Tab completion
+
+`ct completion zsh` or `ct completion bash` prints a completion script (plain `ct completion` picks
+the shell from `$SHELL`). Append it to your shell's startup file:
+
+```bash
+ct completion zsh >> ~/.zshrc     # after compinit runs
+ct completion bash >> ~/.bashrc   # bash 4 or later
+```
+
+Tab then completes ct's subcommands (`pause`, `resume`, `completion`) as the first word, each one's
+flags, and the terminal names after `--terminal`; after `--snapshot` it falls back to file names. It
+never completes session titles. The script completes both `ct` and `claude-tabs`, and runs ct from
+where it was when you generated the script, so generate it again if you move the clone.
+
 ## Usage
 
 ```

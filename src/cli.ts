@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { closeSync, openSync, readSync, writeSync } from 'node:fs'
-import { parseArgs as parseNodeArgs } from 'node:util'
+import { parseFlags, SEARCH_FLAGS } from './args.ts'
 import { DigestCache } from './cache.ts'
 import { loadConfig, type Config } from './config.ts'
 import { realExec } from './exec.ts'
@@ -17,6 +17,7 @@ import { HELP } from './help.ts'
 
 export { runCommand }
 import type { Candidate, Exec, Pane } from './types.ts'
+import { shellQuote } from './shell.ts'
 
 const EXIT_OK = 0
 const EXIT_NONE = 1
@@ -50,6 +51,8 @@ export interface Deps {
   isAlive: (pid: number) => boolean
   sleep: (ms: number) => Promise<void>
   self: string[]
+  /** The user's login shell ($SHELL), which `ct completion` writes a script for by default. */
+  shell: string | undefined
 }
 
 interface Context {
@@ -62,19 +65,7 @@ interface Context {
 
 /** Parse argv; throws on unknown flags. */
 export function parseArgs (argv: string[]): Options {
-  const { values, positionals } = parseNodeArgs({
-    args: argv,
-    allowPositionals: true,
-    strict: true,
-    options: {
-      list: { type: 'boolean', default: false },
-      all: { type: 'boolean', default: false },
-      json: { type: 'boolean', default: false },
-      'no-llm': { type: 'boolean', default: false },
-      terminal: { type: 'string' },
-      help: { type: 'boolean', short: 'h', default: false }
-    }
-  })
+  const { values, positionals } = parseFlags(argv, SEARCH_FLAGS, { positionals: true })
   return {
     query: positionals.join(' '),
     list: values.list || values.json,
@@ -241,10 +232,6 @@ function dedupe (cands: Candidate[]): Candidate[] {
   return cands.filter(c => !seen.has(c.digest.sessionId) && seen.add(c.digest.sessionId) !== undefined)
 }
 
-function shellQuote (s: string): string {
-  return `'${s.replaceAll("'", "'\\''")}'`
-}
-
 const realExecTty: Exec = (cmd, args, input) => {
   if (process.env.CT_NO_REAL_EXEC === '1') return { status: 126, stdout: '', stderr: `${cmd}: blocked by CT_NO_REAL_EXEC` }
   const r = spawnSync(cmd, args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'inherit'] })
@@ -264,12 +251,15 @@ function promptTty (question: string): string {
   }
 }
 
-/** Entry point used by bin/claude-tabs. */
-export async function main (argv: string[]): Promise<number> {
-  const hasFzf = realExec('sh', ['-c', 'command -v fzf']).status === 0
+/**
+ * The real outside world. Building it runs nothing: whether fzf is installed is checked the first
+ * time something asks, so completion requests, which never need it, start no process.
+ */
+export function realDeps (exec: Exec = realExec): Deps {
+  let fzf: boolean | undefined
   const write = (fd: number) => (s: string) => { writeSync(fd, `${s}\n`) }
   const deps: Deps = {
-    exec: realExec,
+    exec,
     execTty: realExecTty,
     dirs: defaultDirs,
     stdout: write(1),
@@ -277,10 +267,13 @@ export async function main (argv: string[]): Promise<number> {
     prompt: promptTty,
     now: Date.now,
     isTty: process.stdout.isTTY === true,
-    hasFzf,
+    get hasFzf () {
+      fzf ??= exec('sh', ['-c', 'command -v fzf']).status === 0
+      return fzf
+    },
     dirExists: realDirExists,
-    resolveAdapter: override => detectAdapter(process.env, realExec, override),
-    pick: (cands, summaries) => realPick(cands, summaries, realExecTty, { hasFzf, prompt: promptTty }),
+    resolveAdapter: override => detectAdapter(process.env, exec, override),
+    pick: (cands, summaries) => realPick(cands, summaries, realExecTty, { hasFzf: deps.hasFzf, prompt: promptTty }),
     isAlive: pid => {
       try {
         process.kill(pid, 0)
@@ -290,8 +283,15 @@ export async function main (argv: string[]): Promise<number> {
       }
     },
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
-    self: [process.execPath, process.argv[1]]
+    self: [process.execPath, process.argv[1]],
+    shell: process.env.SHELL
   }
+  return deps
+}
+
+/** Entry point used by bin/claude-tabs. */
+export async function main (argv: string[]): Promise<number> {
+  const deps = realDeps()
   const sub = await runCommand(argv, deps)
   if (sub !== undefined) return sub
   let opts: Options

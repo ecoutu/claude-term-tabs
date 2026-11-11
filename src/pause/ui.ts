@@ -8,6 +8,7 @@ import { createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { tickPause, stragglerLines, type PauseDeps, type PauseRun } from './run.ts'
 import { FINAL_STATES } from './state.ts'
+import { shellQuote } from '../shell.ts'
 
 /** How often the straggler list refreshes. */
 export const POLL_MS = 3000
@@ -156,8 +157,4 @@ function freePort (): Promise<number> {
       })
     })
   })
-}
-
-function shellQuote (s: string): string {
-  return `'${s.replaceAll("'", "'\\''")}'`
 }

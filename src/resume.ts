@@ -2,6 +2,7 @@ import type { Config } from './config.ts'
 import { isResumableDir, resumeCommand } from './history.ts'
 import type { Snapshot, SnapshotSession } from './snapshot.ts'
 import type { TerminalAdapter } from './terminals/adapter.ts'
+import { shellQuote } from './shell.ts'
 
 /** What `ct resume` will do with one recorded session. */
 export interface ResumeStep {
@@ -66,8 +67,4 @@ export function runResume (steps: ResumeStep[], adapter: TerminalAdapter | undef
 
 function position (n: number | undefined): number {
   return n ?? Number.MAX_SAFE_INTEGER
-}
-
-function shellQuote (s: string): string {
-  return `'${s.replaceAll("'", "'\\''")}'`
 }

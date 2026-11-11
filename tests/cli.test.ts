@@ -3,8 +3,10 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseArgs, run, runCommand, type Deps } from '../src/cli.ts'
-import { HELP } from '../src/help.ts'
+import { main, parseArgs, realDeps, run, runCommand, type Deps } from '../src/cli.ts'
+import { flagLines, HELP } from '../src/help.ts'
+import { entry } from '../src/args.ts'
+import { spawnSync } from 'node:child_process'
 import { saveSnapshot, type Snapshot } from '../src/snapshot.ts'
 import { transcriptPath } from '../src/paths.ts'
 import type { TerminalAdapter } from '../src/terminals/adapter.ts'
@@ -69,7 +71,8 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     pick: cands => cands.find(c => c.digest.sessionId === picked),
     isAlive: () => true,
     sleep: async () => {},
-    self: ['node', 'ct']
+    self: ['node', 'ct'],
+    shell: '/bin/bash'
   }
   return { deps, calls, out, err, focused, opened, sent, choose: (id: string) => { picked = id } }
 }
@@ -321,4 +324,239 @@ test('unknown flags on subcommands are usage errors', async () => {
   assert.equal(await runCommand(['pause', '--', '-h'], w.deps), 2)
   assert.equal(await runCommand(['resume', '--', '-h'], w.deps), 2)
   assert.match(w.err.join('\n'), /bogus/)
+})
+
+test('numbers in a query stay text and flags may follow it', () => {
+  const opts = parseArgs(['pr', '0123', '--no-llm', '--terminal', 'wezterm'])
+  assert.equal(opts.query, 'pr 0123')
+  assert.equal(opts.noLlm, true)
+  assert.equal(opts.terminal, 'wezterm')
+  assert.equal(opts.list, false)
+  assert.equal(parseArgs(['-h']).help, true)
+})
+
+test('a word after a boolean flag stays in the query, and boolean flags take no value', () => {
+  assert.equal(parseArgs(['--list', 'true', 'story']).query, 'true story')
+  assert.equal(parseArgs(['--no-llm', 'false']).query, 'false')
+  assert.throws(() => parseArgs(['--list=false']), /list/)
+})
+
+test('subcommands reject stray words', async () => {
+  const w = world()
+  assert.equal(await runCommand(['pause', 'now'], w.deps), 2)
+  assert.equal(await runCommand(['resume', '--dry-run', 'now'], w.deps), 2)
+  assert.match(w.err.join('\n'), /now/)
+})
+
+test('--terminal without a name is a usage error', () =>
+  assert.throws(() => parseArgs(['--terminal']), /terminal/))
+
+async function complete (words: string[], shell = '/bin/bash'): Promise<string[]> {
+  const w = world()
+  assert.equal(await runCommand(['--complete', shell.includes('zsh') ? 'zsh' : 'bash', 'ct', ...words], w.deps), 0)
+  return w.out.join('\n').split('\n').filter(s => s !== '')
+}
+
+test('completion offers the public subcommands and never the internal ones', async () => {
+  const words = await complete([''])
+  for (const cmd of ['pause', 'resume', 'completion']) assert.ok(words.includes(cmd), `${cmd} in ${words.join(' ')}`)
+  assert.deepEqual(words.filter(s => s.startsWith('_')), [])
+  assert.deepEqual((await complete(['_'])).filter(s => s.startsWith('_')), [])
+})
+
+test('completion offers the search flags after ct', async () => {
+  const words = await complete(['--'])
+  for (const flag of ['--list', '--all', '--json', '--no-llm', '--terminal', '--help']) assert.ok(words.includes(flag), `${flag} in ${words.join(' ')}`)
+  assert.ok(!words.some(s => s.includes('_focus') || s.includes('_send-stop')))
+})
+
+test('completion offers each subcommand its own flags', async () => {
+  assert.deepEqual((await complete(['pause', '--'])).sort(), ['--auto-close', '--help', '--timeout'])
+  assert.deepEqual((await complete(['resume', '--'])).sort(), ['--dry-run', '--help', '--no-prompt', '--snapshot'])
+  assert.deepEqual(await complete(['completion', '-']), ['--help'])
+})
+
+test('completion offers the terminal names after --terminal', async () => {
+  assert.deepEqual((await complete(['--terminal', ''])).sort(), ['iterm2', 'wezterm'])
+  assert.deepEqual(await complete(['--list', '--terminal', 'w']), ['wezterm'])
+})
+
+test('zsh completion describes each subcommand', async () => {
+  const words = await complete([''], '/bin/zsh')
+  assert.ok(words.some(s => /^pause:\S/.test(s)), words.join(' '))
+})
+
+async function script (argv: string[], shell = '/bin/bash', self = 'ct'): Promise<{ code?: number, out: string, err: string }> {
+  const w = world()
+  w.deps.self = ['node', self]
+  w.deps.shell = shell === '' ? undefined : shell
+  const code = await runCommand(argv, w.deps)
+  return { code, out: w.out.join('\n'), err: w.err.join('\n') }
+}
+
+test('ct completion bash and zsh print a script that completes both ct and claude-tabs', async () => {
+  const bash = await script(['completion', 'bash'], '/bin/zsh', '/home/u/bin/claude-tabs')
+  assert.equal(bash.code, 0)
+  assert.match(bash.out, /^complete .*-F _ct_completions ct claude-tabs$/m)
+  assert.match(bash.out, /'\/home\/u\/bin\/claude-tabs' --complete bash /)
+  const zsh = await script(['completion', 'zsh'], '/bin/bash', '/home/u/bin/ct')
+  assert.equal(zsh.code, 0)
+  assert.match(zsh.out, /^#compdef ct claude-tabs$/m)
+  assert.match(zsh.out, /compdef _ct_completions ct claude-tabs/)
+  assert.match(zsh.out, /'\/home\/u\/bin\/ct' --complete zsh /)
+  assert.match(zsh.out, /compset -P '\*='\n\s*_default/)
+})
+
+test('ct completion without a shell picks it from $SHELL', async () => {
+  assert.match((await script(['completion'], '/usr/bin/zsh')).out, /^#compdef ct claude-tabs$/m)
+  assert.match((await script(['completion'], '/bin/bash')).out, /^complete /m)
+})
+
+test('ct completion without a shell refuses a $SHELL that is not bash or zsh', async () => {
+  for (const shell of ['/usr/bin/fish', '']) {
+    const r = await script(['completion'], shell)
+    assert.equal(r.code, 2, shell)
+    assert.equal(r.out, '')
+    assert.match(r.err, /unknown shell.*ct completion bash.*ct completion zsh/)
+  }
+})
+
+test('ct completion rejects other shells, extra words and unknown flags, and -h prints the help', async () => {
+  for (const argv of [['completion', 'fish'], ['completion', 'bash', 'zsh'], ['completion', 'pause'], ['completion', '--bogus']]) {
+    const r = await script(argv)
+    assert.equal(r.code, 2, argv.join(' '))
+    assert.equal(r.out, '', argv.join(' '))
+  }
+  for (const argv of [['completion', '-h'], ['completion', 'zsh', '--help']]) assert.deepEqual(await script(argv), { code: 0, out: HELP, err: '' })
+})
+
+test('--help lists ct completion', () => assert.match(HELP, /ct completion \[bash\|zsh\]/))
+
+test('the completion query flag is an unknown flag everywhere but as the first word', async () => {
+  for (const argv of [['pause', '--complete'], ['resume', '--dry-run', '--complete', 'bash', 'ct'], ['completion', '--complete']]) {
+    const w = world()
+    assert.equal(await runCommand(argv, w.deps), 2, argv.join(' '))
+    assert.deepEqual(w.out, [], argv.join(' '))
+    assert.deepEqual(w.sent, [])
+    assert.match(w.err.join('\n'), /--complete/)
+  }
+  assert.throws(() => parseArgs(['foo', '--complete']), /--complete/)
+  assert.equal(await runCommand(['--complete', 'fish', 'ct', ''], world().deps), 2)
+  assert.equal(await runCommand(['--complete'], world().deps), 2)
+})
+
+/** Run the real entry point, capturing what it writes to stderr. */
+async function mainExit (argv: string[]): Promise<{ code: number, err: string }> {
+  const write = process.stderr.write
+  let err = ''
+  process.stderr.write = ((s: string) => { err += s; return true }) as typeof process.stderr.write
+  try {
+    return { code: await main(argv), err }
+  } finally {
+    process.stderr.write = write
+  }
+}
+
+test('odd flags are node:util usage errors that exit 2', async () => {
+  for (const argv of [['-1'], ['--h'], ['-_'], ['-h0'], ['--_'], ['--$0', 'x'], ['x', '--complete', 'bash'], ['--list=false']]) {
+    const r = await mainExit(argv)
+    assert.equal(r.code, 2, argv.join(' '))
+    assert.match(r.err, /^claude-tabs: (Unknown option|Option)/, argv.join(' '))
+  }
+  const w = world()
+  for (const argv of [['pause', '-1'], ['pause', '--h'], ['resume', '-h0'], ['resume', '-_'], ['completion', '--h']]) assert.equal(await runCommand(argv, w.deps), 2, argv.join(' '))
+  assert.equal(parseArgs(['-h']).help, true)
+  assert.equal(parseArgs(['x', '--help']).help, true)
+})
+
+test('subcommands are completed only as the first word', async () => {
+  for (const words of [['fix', ''], ['--list', ''], ['-h', ''], ['--', ''], ['--', '--'], ['completion', ''], ['pause', ''], ['resume', '--dry-run', '']]) {
+    const offered = (await complete(words)).filter(s => ['pause', 'resume', 'completion'].includes(s.split(':')[0]))
+    assert.deepEqual(offered, [], words.join(' '))
+  }
+  assert.deepEqual(await complete(['--', '--']), [])
+  assert.deepEqual(await complete(['--', '--'], '/bin/zsh'), [])
+})
+
+test('flags that take a value complete their values or nothing', async () => {
+  assert.deepEqual(await complete(['resume', '--snapshot', '']), [])
+  assert.deepEqual(await complete(['resume', '--snapshot', 'snap']), [])
+  assert.deepEqual(await complete(['pause', '--timeout', '']), [])
+  assert.deepEqual(await complete(['--terminal', ''], '/bin/zsh'), ['iterm2', 'wezterm'])
+  assert.deepEqual(await complete(['--terminal', '=']), ['iterm2', 'wezterm'])
+  assert.deepEqual(await complete(['--terminal', '=', 'i']), ['iterm2'])
+  assert.deepEqual(await complete(['--terminal=w'], '/bin/zsh'), ['--terminal=wezterm'])
+  assert.deepEqual(await complete(['resume', '--snapshot=sn'], '/bin/zsh'), [])
+  assert.deepEqual(await complete(['pause', '--timeout=1'], '/bin/zsh'), [])
+})
+
+test('ct completion completes the shell names', async () => {
+  assert.deepEqual(await complete(['completion', '']), ['bash', 'zsh'])
+  assert.deepEqual(await complete(['completion', 'z']), ['zsh'])
+  assert.deepEqual(await complete(['completion', 'zsh', '']), [])
+})
+
+test('zsh completion describes every flag and subcommand in the words of --help', async () => {
+  const lines = [...await complete([''], '/bin/zsh'), ...await complete(['--'], '/bin/zsh'), ...await complete(['pause', '--'], '/bin/zsh'), ...await complete(['resume', '--'], '/bin/zsh')]
+  assert.equal(lines.length, 16, lines.join('\n'))
+  for (const line of lines) {
+    const desc = line.slice(line.indexOf(':') + 1)
+    assert.ok(desc !== '' && HELP.includes(desc), `${line} not in --help`)
+  }
+})
+
+test('building the real deps runs nothing until the picker needs fzf', () => {
+  const calls: string[] = []
+  const deps = realDeps((cmd, args) => { calls.push([cmd, ...args].join(' ')); return { status: 0, stdout: '', stderr: '' } })
+  assert.deepEqual(calls, [])
+  assert.equal(deps.hasFzf, true)
+  assert.equal(deps.hasFzf, true)
+  assert.deepEqual(calls, ['sh -c command -v fzf'])
+})
+
+test('flags already given are not offered again, whatever form they were given in', async () => {
+  const cases: Array<[string[], string[], string]> = [
+    [['--terminal=iterm2', '--'], ['--terminal=iterm2', '--'], '--terminal'],
+    [['--terminal', 'iterm2', '--'], ['--terminal', '=', 'iterm2', '--'], '--terminal'],
+    [['resume', '--snapshot=f', '--'], ['resume', '--snapshot', '=', 'f', '--'], '--snapshot'],
+    [['-h', '--'], ['-h', '--'], '--help'],
+    [['pause', '-h', '--'], ['pause', '-h', '--'], '--help']
+  ]
+  for (const [zshWords, bashWords, flag] of cases) {
+    const zsh = (await complete(zshWords, '/bin/zsh')).map(s => s.split(':')[0])
+    const bash = await complete(bashWords)
+    assert.ok(zsh.length > 0 && !zsh.includes(flag), `zsh ${zshWords.join(' ')}: ${zsh.join(' ')}`)
+    assert.ok(bash.length > 0 && !bash.includes(flag), `bash ${bashWords.join(' ')}: ${bash.join(' ')}`)
+  }
+})
+
+test('zsh completion escapes colons in every word it offers', () => {
+  assert.equal(entry('zsh', 'a:b', 'say: hi'), 'a\\:b:say: hi')
+  assert.equal(entry('zsh', 'a:b'), 'a\\:b')
+  assert.equal(entry('bash', 'a:b', 'say: hi'), 'a:b')
+})
+
+test('a completion request answers without loading the rest of ct', () => {
+  const hook = 'data:text/javascript,import{registerHooks}from"node:module";registerHooks({resolve(s,c,n){const r=n(s,c);process.stderr.write("loaded "+r.url+"\\n");return r}})'
+  const r = spawnSync(process.execPath, ['--import', hook, join(import.meta.dirname, '..', 'bin', 'claude-tabs'), '--complete', 'bash', 'ct', '--'], { encoding: 'utf8' })
+  assert.equal(r.status, 0, r.stderr)
+  assert.deepEqual(r.stdout.trim().split('\n'), ['--list', '--all', '--json', '--no-llm', '--terminal', '--help'])
+  const loaded = r.stderr.split('\n').filter(l => l.includes('/src/')).map(l => l.slice(l.indexOf('/src/') + 1))
+  assert.ok(loaded.length > 0, r.stderr)
+  assert.deepEqual(loaded.filter(f => ['src/cli.ts', 'src/commands.ts', 'src/help.ts'].includes(f)), [], loaded.join(' '))
+})
+
+test('the flag column fits the longest label', () => {
+  const lines = flagLines({ 'a-very-long-flag-name': { value: 'SOMETHING', describe: 'first' }, x: { describe: 'second' } }).split('\n')
+  assert.deepEqual(lines, ['  --a-very-long-flag-name SOMETHING  first', `  --x${' '.repeat(32)}second`])
+  assert.equal(flagLines({ list: { describe: 'd' } }), '  --list           d')
+})
+
+test('--help starts with usage lines built from the subcommand tables', () => {
+  assert.ok(HELP.startsWith(`usage: ct [query...] [options]
+       ct pause [--auto-close] [--timeout MIN]
+       ct resume [--dry-run] [--no-prompt] [--snapshot FILE]
+       ct completion [bash|zsh]
+
+Find a Claude Code session`), HELP)
 })

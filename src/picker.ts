@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Candidate, Digest, Exec } from './types.ts'
+import { shellQuote } from './shell.ts'
 
 const SEP = ' · '
 const FZF_CANCEL = new Set([1, 130])
@@ -76,10 +77,6 @@ function previewText (d: Digest): string {
     `last:   ${d.lastPrompt ?? ''}`,
     d.note !== undefined ? `note:   ${d.note}` : ''
   ].map(cleanField).join('\n')
-}
-
-function shellQuote (s: string): string {
-  return `'${s.replaceAll("'", "'\\''")}'`
 }
 
 function tabLabel (c: Candidate): string {

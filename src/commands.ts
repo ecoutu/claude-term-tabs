@@ -1,5 +1,7 @@
 import { readFileSync, statSync } from 'node:fs'
-import { parseArgs as parseNodeArgs } from 'node:util'
+import { basename } from 'node:path'
+import { COMMANDS, completionScript, isCommand, isShell, PAUSE_FLAGS, parseFlags, RESUME_FLAGS, SHELLS } from './args.ts'
+import { answerCompletion, COMPLETE_FLAG } from './complete.ts'
 import type { Deps } from './cli.ts'
 import { loadConfig } from './config.ts'
 import { HELP } from './help.ts'
@@ -19,11 +21,13 @@ const EXIT_USAGE = 2
 /** Run a subcommand when argv[0] names one; undefined means "not a subcommand, search instead". */
 export async function runCommand (argv: string[], deps: Deps): Promise<number | undefined> {
   const [name, ...rest] = argv
-  if ((name === 'pause' || name === 'resume') && asksHelp(rest)) return showHelp(deps)
+  if (isCommand(name) && asksHelp(rest)) return showHelp(deps)
   try {
     switch (name) {
       case 'pause': return await pause(rest, deps)
       case 'resume': return resume(rest, deps)
+      case 'completion': return completion(rest, deps)
+      case COMPLETE_FLAG: return answerCompletion(rest, deps)
       case '_focus': return focus(rest, deps)
       case '_send-stop': return sendStopCommand(rest, deps)
       default: return undefined
@@ -35,7 +39,7 @@ export async function runCommand (argv: string[], deps: Deps): Promise<number | 
 }
 
 async function pause (argv: string[], deps: Deps): Promise<number> {
-  const { values } = parseNodeArgs({ args: argv, strict: true, options: { 'auto-close': { type: 'boolean', default: false }, timeout: { type: 'string' } } })
+  const { values } = parseFlags(argv, PAUSE_FLAGS)
   const config = loadConfig(deps.dirs.config)
   const timeoutMinutes = values.timeout !== undefined ? positive(values.timeout, '--timeout') : config.pauseTimeoutMinutes
   const adapter = deps.resolveAdapter()
@@ -70,7 +74,7 @@ async function pause (argv: string[], deps: Deps): Promise<number> {
 }
 
 function resume (argv: string[], deps: Deps): number {
-  const { values } = parseNodeArgs({ args: argv, strict: true, options: { 'dry-run': { type: 'boolean', default: false }, 'no-prompt': { type: 'boolean', default: false }, snapshot: { type: 'string' } } })
+  const { values } = parseFlags(argv, RESUME_FLAGS)
   const config = loadConfig(deps.dirs.config)
   const snap = values.snapshot !== undefined ? readSnapshot(values.snapshot) : latestSnapshot(deps.dirs.snapshots)
   if (snap === undefined) {
@@ -92,6 +96,19 @@ function showHelp (deps: Deps): number {
 function asksHelp (argv: string[]): boolean {
   const end = argv.indexOf('--')
   return (end === -1 ? argv : argv.slice(0, end)).some(a => a === '-h' || a === '--help')
+}
+
+/** `ct completion [bash|zsh]` prints the script; without a shell, $SHELL decides when it is bash or zsh. */
+function completion (argv: string[], deps: Deps): number {
+  const { positionals } = parseFlags(argv, COMMANDS.completion.flags, { positionals: true })
+  if (positionals.length > 1) throw new Error(`Unexpected argument '${positionals[1]}'`)
+  const shell = positionals[0] ?? basename(deps.shell ?? '')
+  if (!isShell(shell)) {
+    const where = positionals[0] === undefined ? ' in $SHELL' : ''
+    throw new Error(`unknown shell "${shell}"${where} (supported: ${SHELLS.join(', ')}); run ${SHELLS.map(s => `ct completion ${s}`).join(' or ')}`)
+  }
+  deps.stdout(completionScript(shell, deps.self[1] ?? 'ct'))
+  return EXIT_OK
 }
 
 function focus (argv: string[], deps: Deps): number {
@@ -122,7 +139,7 @@ function frontOf (deps: Deps, c: Candidate): Front {
 }
 
 function requireId (argv: string[]): string {
-  const { positionals } = parseNodeArgs({ args: argv, strict: true, allowPositionals: true, options: {} })
+  const { positionals } = parseFlags(argv, {}, { positionals: true })
   if (positionals.length !== 1) throw new Error('expected exactly one session id')
   return positionals[0]
 }

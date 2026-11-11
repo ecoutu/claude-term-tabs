@@ -1,8 +1,16 @@
 #!/usr/bin/env node
-import { realpathSync } from 'node:fs'
+import { realpathSync, writeSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const root = dirname(dirname(realpathSync(process.argv[1])))
-const { main } = await import(pathToFileURL(join(root, 'src', 'cli.ts')).href)
-process.exitCode = await main(process.argv.slice(2))
+const argv = process.argv.slice(2)
+const src = file => pathToFileURL(join(root, 'src', file)).href
+const { COMPLETE_FLAG, answerCompletion } = await import(src('complete.ts'))
+if (argv[0] === COMPLETE_FLAG) {
+  // A Tab press: answer without loading the rest of ct.
+  process.exitCode = answerCompletion(argv.slice(1), { stdout: s => writeSync(1, `${s}\n`), stderr: s => writeSync(2, `${s}\n`) })
+} else {
+  const { main } = await import(src('cli.ts'))
+  process.exitCode = await main(argv)
+}
