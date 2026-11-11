@@ -1,3 +1,22 @@
+# [2.0.0](https://github.com/ecoutu/claude-term-tabs/compare/v1.3.0...v2.0.0) (2026-11-11)
+
+
+* feat(cli)!: rename to claude-term-tabs, with ctt as the short command ([e9459a2](https://github.com/ecoutu/claude-term-tabs/commit/e9459a29d40cc63b55b6420ec51498f85cab404a))
+
+
+### Bug Fixes
+
+* **cli:** write all of the output when it goes to a pipe ([14a6bf0](https://github.com/ecoutu/claude-term-tabs/commit/14a6bf0d813805f038327fcf9276d10d582a4203))
+
+
+### BREAKING CHANGES
+
+* the command is claude-term-tabs (alias ctt); re-link
+bin/claude-term-tabs and regenerate the completion script. Config,
+cache and snapshots now live under claude-term-tabs: move
+~/.config/claude-tabs, ~/.cache/claude-tabs and
+~/.local/state/claude-tabs to keep them.
+
 # [1.3.0](https://github.com/ecoutu/claude-tabs/compare/v1.2.1...v1.3.0) (2026-11-11)
 
 
