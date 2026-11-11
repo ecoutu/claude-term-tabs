@@ -20,12 +20,12 @@
 - After rebasing a branch that is already pushed, update it with `--force-with-lease`. Ask first if another PR uses it as its base.
 
 ## Releases: semantic-release
-- Merging to `main` triggers semantic-release (config in `.releaserc*`). It reads the commits on `main` since the last tag, then commits the new notes to `CHANGELOG.md` (`chore(release): <version> [skip ci]`), tags the version and publishes a GitHub release. Nothing goes to npm:
+- Merging to `main` triggers semantic-release (config in `.releaserc*`). It reads the commits on `main` since the last tag, then commits the new notes to `CHANGELOG.md` (`chore(release): <version> [skip ci]`), tags the version, publishes the package to npm as `claude-term-tabs` (trusted publishing from `release.yml`, no token; `prepack` builds `dist/`) and publishes a GitHub release:
   - `feat` → minor
   - `fix` / `perf` → patch
   - `!` / `BREAKING CHANGE` → major
   - anything else → no release
-- semantic-release alone decides the version. `package.json` keeps a placeholder version; the tag is the version. Never create tags, or edit `CHANGELOG.md` or release notes by hand.
+- semantic-release alone decides the version. `package.json` keeps a placeholder version (semantic-release sets it only in the published package); the tag is the version. Never create tags, or edit `CHANGELOG.md` or release notes by hand.
 - Pick commit types carefully, because they *are* the changelog. Don't label a user-visible fix `chore`, or a refactor `feat`.
 - `main` is protected by the `protect-main` ruleset: PRs only, the `ci` check must pass, linear history. The admin bypass exists for the release job's changelog commit and for landing a prepared stack with `--fast-forward`; don't use it to push work that skipped review.
 

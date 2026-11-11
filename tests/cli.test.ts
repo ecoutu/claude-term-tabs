@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { main, parseArgs, realDeps, run, runCommand, type Deps } from '../src/cli.ts'
+import { completionProgram, main, parseArgs, realDeps, run, runCommand, type Deps } from '../src/cli.ts'
 import { flagLines, HELP } from '../src/help.ts'
 import { entry } from '../src/args.ts'
 import { spawnSync } from 'node:child_process'
@@ -72,6 +72,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     isAlive: () => true,
     sleep: async () => {},
     self: ['node', 'ctt'],
+    completionProgram: 'ctt',
     shell: '/bin/bash'
   }
   return { deps, calls, out, err, focused, opened, sent, choose: (id: string) => { picked = id } }
@@ -389,6 +390,7 @@ test('zsh completion describes each subcommand', async () => {
 async function script (argv: string[], shell = '/bin/bash', self = 'ctt'): Promise<{ code?: number, out: string, err: string }> {
   const w = world()
   w.deps.self = ['node', self]
+  w.deps.completionProgram = self
   w.deps.shell = shell === '' ? undefined : shell
   const code = await runCommand(argv, w.deps)
   return { code, out: w.out.join('\n'), err: w.err.join('\n') }
@@ -405,6 +407,26 @@ test('ctt completion bash and zsh print a script that completes both ctt and cla
   assert.match(zsh.out, /compdef _ctt_completions ctt claude-term-tabs/)
   assert.match(zsh.out, /'\/home\/u\/bin\/ctt' --complete zsh /)
   assert.match(zsh.out, /compset -P '\*='\n\s*_default/)
+})
+
+test('an installed ctt completes through its command name, so a cleaned or version-switched install path does not break it', () => {
+  assert.equal(completionProgram('/home/u/.npm/_npx/abc/node_modules/.bin/ctt', true), 'claude-term-tabs')
+  assert.equal(completionProgram('/home/u/.nvm/versions/node/v24.1.0/bin/ctt', true), 'claude-term-tabs')
+})
+
+test('a clone completes through its own path, so it works off PATH', () =>
+  assert.equal(completionProgram('/home/u/src/claude-tabs/bin/claude-term-tabs', false), '/home/u/src/claude-tabs/bin/claude-term-tabs'))
+
+test('realDeps completes through the command name only when the launcher says it runs installed', () => {
+  assert.equal(realDeps(undefined, true).completionProgram, 'claude-term-tabs')
+  assert.equal(realDeps().completionProgram, process.argv[1])
+})
+
+test('ctt completion writes the completion program into the script', async () => {
+  const w = world()
+  w.deps.completionProgram = 'claude-term-tabs'
+  assert.equal(await runCommand(['completion', 'bash'], w.deps), 0)
+  assert.match(w.out.join('\n'), /'claude-term-tabs' --complete bash /)
 })
 
 test('ctt completion without a shell picks it from $SHELL', async () => {

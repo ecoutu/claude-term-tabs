@@ -53,6 +53,8 @@ export interface Deps {
   isAlive: (pid: number) => boolean
   sleep: (ms: number) => Promise<void>
   self: string[]
+  /** What the completion script runs to answer a Tab press. */
+  completionProgram: string
   /** The user's login shell ($SHELL), which `ctt completion` writes a script for by default. */
   shell: string | undefined
 }
@@ -257,7 +259,8 @@ function promptTty (question: string): string {
  * The real outside world. Building it runs nothing: whether fzf is installed is checked the first
  * time something asks, so completion requests, which never need it, start no process.
  */
-export function realDeps (exec: Exec = realExec): Deps {
+/** `installed`: the launcher runs the built package (dist/), not a clone's src/. */
+export function realDeps (exec: Exec = realExec, installed = false): Deps {
   let fzf: boolean | undefined
   const deps: Deps = {
     exec,
@@ -286,14 +289,24 @@ export function realDeps (exec: Exec = realExec): Deps {
     },
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     self: [process.execPath, process.argv[1]],
+    completionProgram: completionProgram(process.argv[1], installed),
     shell: process.env.SHELL
   }
   return deps
 }
 
-/** Entry point used by bin/claude-term-tabs. */
-export async function main (argv: string[]): Promise<number> {
-  const deps = realDeps()
+/**
+ * What a completion script should run. An installed package is called by name from PATH, because the path it ran
+ * from may not last (npx cleans its cache; a version manager keeps one prefix per Node). A clone keeps its own path,
+ * so it works without being on PATH.
+ */
+export function completionProgram (argv1: string, installed: boolean): string {
+  return installed ? 'claude-term-tabs' : argv1
+}
+
+/** Entry point used by bin/claude-term-tabs, which says whether it runs the installed package. */
+export async function main (argv: string[], { installed = false }: { installed?: boolean } = {}): Promise<number> {
+  const deps = realDeps(realExec, installed)
   const sub = await runCommand(argv, deps)
   if (sub !== undefined) return sub
   let opts: Options

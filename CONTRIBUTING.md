@@ -15,6 +15,15 @@ npm run check   # type-check
 npm test
 ```
 
+The package ships JavaScript built into `dist/` (`npm run build`, run for you by `npm pack` and `npm publish`); a
+checkout runs the TypeScript in `src/` directly.
+
+Releases publish to npm with trusted publishing: `release.yml` trades a GitHub OIDC token for the publish, so no npm
+token is stored. npm sets up trusted publishing only for a package that already exists, so the very first publish was
+by hand: `npm publish --tag bootstrap` of version `0.0.0-bootstrap` from a fresh clone, then
+`npm trust github claude-term-tabs --repo ecoutu/claude-term-tabs --file release.yml --allow-publish`. If the package is ever
+recreated, do that again before merging anything that releases.
+
 ## Before you open a pull request
 
 Run `npm run check` (type-check) and `npm test`, the checks CI runs (the `pre-push` hook runs them too). Add or update

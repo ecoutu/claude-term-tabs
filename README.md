@@ -14,10 +14,11 @@ Works with iTerm2 and WezTerm on macOS.
 Needs Node 24 or later. `fzf` is optional; without it the picker is a numbered list.
 
 ```bash
-git clone https://github.com/ecoutu/claude-term-tabs ~/ecoutu/src/claude-term-tabs
-ln -s ~/ecoutu/src/claude-term-tabs/bin/claude-term-tabs ~/bin/claude-term-tabs
-ln -s claude-term-tabs ~/bin/ctt
+npm install --global claude-term-tabs   # installs both claude-term-tabs and ctt
+npx claude-term-tabs pause              # or run it without installing
 ```
+
+To run it from a clone instead, link the clone with `npm link`.
 
 The first switch in iTerm2 asks macOS for permission to control iTerm2. Allow it, or grant it
 later in System Settings > Privacy & Security > Automation.
@@ -34,8 +35,9 @@ ctt completion bash >> ~/.bashrc   # bash 4 or later
 
 Tab then completes ctt's subcommands (`pause`, `resume`, `completion`) as the first word, each one's
 flags, and the terminal names after `--terminal`; after `--snapshot` it falls back to file names. It
-never completes session titles. The script completes both `ctt` and `claude-term-tabs`, and runs ctt from
-where it was when you generated the script, so generate it again if you move the clone.
+never completes session titles. The script completes both `ctt` and `claude-term-tabs`. Installed with npm, it runs
+`claude-term-tabs` from your `PATH`, so completion needs a global install (`npx` alone isn't enough). Run from a
+clone, it runs ctt from where it was when you generated the script, so generate it again if you move the clone.
 
 ## Usage
 

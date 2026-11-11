@@ -25,6 +25,8 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      # npm trusted publishing: npm trades this OIDC token for a publish token, and adds provenance. No NPM_TOKEN.
+      id-token: write
     steps:
       # main is protected by the `protect-main` ruleset, so the CHANGELOG.md commit needs a token that may bypass it:
       # the owner's classic token PROJECT_TOKEN (the admin role bypasses protect-main with mode "always").

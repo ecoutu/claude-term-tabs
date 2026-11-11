@@ -107,7 +107,7 @@ function completion (argv: string[], deps: Deps): number {
     const where = positionals[0] === undefined ? ' in $SHELL' : ''
     throw new Error(`unknown shell "${shell}"${where} (supported: ${SHELLS.join(', ')}); run ${SHELLS.map(s => `ctt completion ${s}`).join(' or ')}`)
   }
-  deps.stdout(completionScript(shell, deps.self[1] ?? 'ctt'))
+  deps.stdout(completionScript(shell, deps.completionProgram))
   return EXIT_OK
 }
 

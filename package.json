@@ -1,15 +1,44 @@
 {
   "name": "claude-term-tabs",
   "version": "0.0.0-development",
-  "private": true,
+  "description": "Find a running Claude Code session by what you remember, and jump to its terminal tab",
   "type": "module",
+  "license": "MIT",
+  "author": "Emma Coutu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ecoutu/claude-term-tabs.git"
+  },
+  "homepage": "https://github.com/ecoutu/claude-term-tabs#readme",
+  "bugs": {
+    "url": "https://github.com/ecoutu/claude-term-tabs/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "iterm2",
+    "wezterm",
+    "terminal",
+    "tabs",
+    "cli"
+  ],
   "bin": {
-    "claude-term-tabs": "bin/claude-term-tabs"
+    "claude-term-tabs": "bin/claude-term-tabs",
+    "ctt": "bin/claude-term-tabs"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
   },
   "scripts": {
     "test": "CTT_NO_REAL_EXEC=1 node --test 'tests/**/*.test.ts'",
     "check": "tsc",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.4",
