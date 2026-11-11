@@ -97,3 +97,13 @@ test('retainOnly drops entries for transcripts no longer listed', () => {
   cache.save()
   assert.deepEqual(Object.keys(JSON.parse(readFileSync(cacheFile, 'utf8')).entries), [transcript])
 })
+
+test('a digest cached before pasted-text tags were stripped is extracted again', () => {
+  const { transcript, cacheFile } = setup()
+  const { size, mtimeMs } = statSync(transcript)
+  const tagged = { ...digest('a'), firstPrompt: '<pasted_content id="9a1b"> retry the sync job </pasted_content id="9a1b">' }
+  mkdirSync(join(cacheFile, '..'), { recursive: true })
+  writeFileSync(cacheFile, JSON.stringify({ version: 1, entries: { [transcript]: { size, mtimeMs, digest: tagged } } }))
+  const d = DigestCache.load(cacheFile, () => {}).get(transcript, () => ({ ...digest('a'), firstPrompt: 'retry the sync job' }))
+  assert.equal(d.firstPrompt, 'retry the sync job')
+})

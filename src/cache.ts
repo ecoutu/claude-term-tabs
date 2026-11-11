@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { writeOwnerOnly } from './fsutil.ts'
 import type { Digest } from './types.ts'
 
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 
 interface Entry { size: number, mtimeMs: number, digest: Digest }
 interface CacheFile { version: number, entries: Record<string, Entry> }
