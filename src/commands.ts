@@ -2,6 +2,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { parseArgs as parseNodeArgs } from 'node:util'
 import type { Deps } from './cli.ts'
 import { loadConfig } from './config.ts'
+import { HELP } from './help.ts'
 import { liveWithPanes } from './discover.ts'
 import { inFrontOf, type Front } from './foreground.ts'
 import type { Candidate } from './types.ts'
@@ -18,6 +19,7 @@ const EXIT_USAGE = 2
 /** Run a subcommand when argv[0] names one; undefined means "not a subcommand, search instead". */
 export async function runCommand (argv: string[], deps: Deps): Promise<number | undefined> {
   const [name, ...rest] = argv
+  if ((name === 'pause' || name === 'resume') && asksHelp(rest)) return showHelp(deps)
   try {
     switch (name) {
       case 'pause': return await pause(rest, deps)
@@ -80,6 +82,16 @@ function resume (argv: string[], deps: Deps): number {
   const steps = planResume(snap, liveIds, deps.dirExists, config, { noPrompt: values['no-prompt'] })
   deps.stdout(`Snapshot ${snap.createdAt}: ${steps.length} sessions`)
   return runResume(steps, adapter, { dryRun: values['dry-run'] }, deps.stdout)
+}
+
+function showHelp (deps: Deps): number {
+  deps.stdout(HELP)
+  return EXIT_OK
+}
+
+function asksHelp (argv: string[]): boolean {
+  const end = argv.indexOf('--')
+  return (end === -1 ? argv : argv.slice(0, end)).some(a => a === '-h' || a === '--help')
 }
 
 function focus (argv: string[], deps: Deps): number {

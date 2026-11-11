@@ -13,6 +13,7 @@ import { clearWinner, rankLocal, tokenize } from './score.ts'
 import { detectAdapter, type TerminalAdapter } from './terminals/adapter.ts'
 import { runCommand } from './commands.ts'
 import { listPanesOrWarn } from './discover.ts'
+import { HELP } from './help.ts'
 
 export { runCommand }
 import type { Candidate, Exec, Pane } from './types.ts'
@@ -20,32 +21,6 @@ import type { Candidate, Exec, Pane } from './types.ts'
 const EXIT_OK = 0
 const EXIT_NONE = 1
 const EXIT_ERROR = 2
-
-const HELP = `usage: ct [query...] [options]
-       ct pause [--auto-close] [--timeout MIN]
-       ct resume [--dry-run] [--no-prompt] [--snapshot FILE]
-
-Find a Claude Code session by what you remember and switch to its tab.
-
-  --list           print matches, never switch
-  --all            include closed sessions (choosing one resumes it in a new tab)
-  --json           machine-readable output (implies --list)
-  --no-llm         local matching only, never call Haiku
-  --terminal NAME  iterm2 | wezterm (default: detected)
-  -h, --help       show this help
-
-ct pause: before a restart, record every live session and ask each to write a HANDOFF.
-  --auto-close     also exit each session and close its tab once its HANDOFF is in
-  --timeout MIN    minutes to wait for HANDOFFs (default: config pauseTimeoutMinutes, else 10)
-
-ct resume: after a restart, reopen the recorded sessions in their window and tab order.
-  --dry-run        print the commands instead
-  --no-prompt      reopen without sending the resume prompt
-  --snapshot FILE  use this snapshot instead of the latest
-
-Use ct -- pause to search for the word "pause".
-
-Config: ~/.config/claude-tabs/config.json  {"resumeCommand": "claude --resume {id}", "excludeDirs": ["~/scratch"]}`
 
 /** Parsed command-line options. */
 export interface Options {

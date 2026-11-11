@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseArgs, run, runCommand, type Deps } from '../src/cli.ts'
+import { HELP } from '../src/help.ts'
 import { saveSnapshot, type Snapshot } from '../src/snapshot.ts'
 import { transcriptPath } from '../src/paths.ts'
 import type { TerminalAdapter } from '../src/terminals/adapter.ts'
@@ -209,6 +210,17 @@ test('--help lists the pause and resume subcommands and their flags', () => {
   for (const s of ['ct pause', '--auto-close', '--timeout', 'ct resume', '--dry-run', '--no-prompt', '--snapshot']) assert.ok(help.includes(s), s)
 })
 
+test('-h and --help on pause and resume print the help without pausing or resuming', async () => {
+  for (const argv of [['pause', '-h'], ['pause', '--help'], ['resume', '-h'], ['resume', '--help'], ['pause', '-h', '--bogus'], ['resume', 'extra', '--help']]) {
+    const w = world()
+    assert.equal(await runCommand(argv, w.deps), 0)
+    assert.deepEqual(w.out, [HELP])
+    assert.deepEqual(w.err, [])
+    assert.deepEqual(w.sent, [])
+    assert.deepEqual(w.opened, [])
+  }
+})
+
 test('unknown flag is a usage error', () =>
   assert.throws(() => parseArgs(['--bogus']), /bogus/))
 
@@ -306,5 +318,7 @@ test('unknown flags on subcommands are usage errors', async () => {
   const w = world()
   assert.equal(await runCommand(['pause', '--bogus'], w.deps), 2)
   assert.equal(await runCommand(['resume', '--bogus'], w.deps), 2)
+  assert.equal(await runCommand(['pause', '--', '-h'], w.deps), 2)
+  assert.equal(await runCommand(['resume', '--', '-h'], w.deps), 2)
   assert.match(w.err.join('\n'), /bogus/)
 })
