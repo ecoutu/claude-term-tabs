@@ -6,7 +6,7 @@
 
 Find a running Claude Code session by what you remember about it, and switch to its terminal tab.
 
-![ctt switching to a session by a few words, then ctt pause waiting until every session has written a HANDOFF](https://raw.githubusercontent.com/ecoutu/claude-term-tabs/main/docs/demo.gif)
+![ctt switching to a session by a few words, ctt pause --auto-close closing every session once it has written a HANDOFF, then ctt resume reopening them all](https://raw.githubusercontent.com/ecoutu/claude-term-tabs/main/docs/demo.gif)
 
 ```bash
 ctt working on pause in claude-term-tabs
