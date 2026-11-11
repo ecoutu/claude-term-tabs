@@ -1,3 +1,16 @@
+## [2.1.3](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.2...v2.1.3) (2026-11-11)
+
+### Bug Fixes
+
+* **pause:** see HANDOFFs when Claude Code records the stop prompt as pasted text ([a305fcb](https://github.com/ecoutu/claude-term-tabs/commit/a305fcb41ccafbf9f131aeae360443afaf5769a3))
+* **resume:** reopen a window's tabs in that window in WezTerm ([324ae28](https://github.com/ecoutu/claude-term-tabs/commit/324ae2865d097ce8f2ce01cbf141fa7d150b8e64))
+* **search:** leave Claude Code's pasted-text tags out of first and last prompts ([fcc31cd](https://github.com/ecoutu/claude-term-tabs/commit/fcc31cd5481baf59fc7d710d6be0753eeb16c51d))
+
+### Documentation
+
+* **readme:** say that WezTerm works on Linux ([fa3365d](https://github.com/ecoutu/claude-term-tabs/commit/fa3365d77653b3b0e5de6d9ea93400ddd1c1813d))
+* **readme:** show a demo GIF and how to record it again ([79aada7](https://github.com/ecoutu/claude-term-tabs/commit/79aada71f7e0cc5b7b8f48d2cf538299f6bde456))
+
 ## [2.1.2](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.1...v2.1.2) (2026-11-11)
 
 ## [2.1.1](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.0...v2.1.1) (2026-11-11)
