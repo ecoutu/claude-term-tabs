@@ -1,12 +1,12 @@
 name: Idea
-description: Something ctt could find, switch to, pause or resume for you.
+description: Something ctt could find, switch to, pause or resume for you, or a terminal it should support.
 labels: [idea]
 body:
   - type: textarea
     id: what
     attributes:
       label: What you want to do
-      description: The situation, and what ctt should do in it.
+      description: The situation, and what ctt should do in it. For a new terminal, name it and how you run Claude Code in it.
     validations:
       required: true
   - type: textarea
