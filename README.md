@@ -3,8 +3,8 @@
 Find a running Claude Code session by what you remember about it, and switch to its terminal tab.
 
 ```bash
-ct working on envoy in api-proxy
-# → Envoy api-accounts exposure and staging · api-proxy · tab 4
+ct working on pause in claude-tabs
+# → Pause sessions before a restart · claude-tabs · tab 4
 ```
 
 Works with iTerm2 and WezTerm on macOS.
@@ -135,7 +135,7 @@ iTerm2:
 
 1. `ct --list <words from a tab title>` prints that tab with the right `tab N`.
 2. `ct <words from a tab title>` switches to it.
-3. `ct csv ingestion` (or any phrase matching two sessions) opens the fzf picker; Enter switches.
+3. `ct claude-tabs` (or any phrase matching two sessions) opens the fzf picker; Enter switches.
 4. `ct --all <words from a closed session>` resumes it in a new tab.
 
 WezTerm: the same four checks, run inside WezTerm.
