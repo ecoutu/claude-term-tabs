@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/ecoutu/claude-term-tabs/compare/v2.0.0...v2.1.0) (2026-11-11)
+
+
+### Features
+
+* publish to npm as claude-term-tabs, with a ctt command ([a868a19](https://github.com/ecoutu/claude-term-tabs/commit/a868a19883825ae45b412c2333969a2b7f4a553f))
+
 # [2.0.0](https://github.com/ecoutu/claude-term-tabs/compare/v1.3.0...v2.0.0) (2026-11-11)
 
 
