@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { isAbsolute, join, resolve } from 'node:path'
 
 /** Prompt typed into every session by `ct pause`. */
 export const DEFAULT_STOP_PROMPT = "Pausing for a machine restart. Stop at the nearest safe point: start nothing new, and do not push, merge, apply, post or transition anything that was not already mid-flight. Leave no file half-edited; do not commit unless that was already the plan. Background jobs, Monitors, /loop wakeups and subagents will die with the restart.\n\nThen reply with a message headed HANDOFF (under 20 lines):\n- Goal: what this session is for (ticket/PR refs)\n- Done: what is finished, with PR numbers, commits, ticket states\n- In flight: branch, worktree path, uncommitted changes, anything half-done\n- Lost on restart: background watches/monitors/loops/agents and how to restart them\n- Next step: the exact next action\n- Open questions: anything you need from me\n\nThen stop and wait.\n"
@@ -14,6 +16,8 @@ export interface Config {
   stopPrompt: string
   resumePrompt: string
   pauseTimeoutMinutes: number
+  /** Absolute dirs (and their real paths): `--all` leaves out closed sessions whose latest cwd is one of them or below one. */
+  excludeDirs: string[]
 }
 
 /** Load config; a missing file gives defaults, anything unreadable or invalid throws. */
@@ -43,7 +47,30 @@ function validate (o: Record<string, unknown>, path: string): Partial<Config> {
   }
   const t = o.pauseTimeoutMinutes
   if (t !== undefined && (typeof t !== 'number' || !Number.isFinite(t) || t <= 0)) throw bad('pauseTimeoutMinutes', 'a positive number')
-  return o as Partial<Config>
+  const x = o.excludeDirs
+  let excludeDirs: string[] | undefined
+  if (x !== undefined) {
+    if (!Array.isArray(x) || !x.every(d => typeof d === 'string')) throw bad('excludeDirs', 'a list of directories')
+    const dirs = x.map(expandDir)
+    if (dirs.some(d => d === undefined)) throw bad('excludeDirs', 'absolute paths or paths starting with ~/')
+    // Claude Code records the physical cwd, so a dir reached through a symlink (macOS /tmp) also matches by its real path.
+    excludeDirs = [...new Set((dirs as string[]).flatMap(d => [d, realpathOr(d)]))]
+  }
+  return { ...o, ...(excludeDirs !== undefined && { excludeDirs }) } as Partial<Config>
+}
+
+/** `~/x` → `$HOME/x`, resolved (normalized, no trailing slash); undefined when not absolute. */
+function expandDir (d: string): string | undefined {
+  const p = d === '~' || d.startsWith('~/') ? join(homedir(), d.slice(1)) : d
+  return isAbsolute(p) ? resolve(p) : undefined
+}
+
+function realpathOr (d: string): string {
+  try {
+    return realpathSync(d)
+  } catch {
+    return d
+  }
 }
 
 function withDefaults (c: Partial<Config>): Config {
@@ -51,6 +78,7 @@ function withDefaults (c: Partial<Config>): Config {
     resumeCommand: c.resumeCommand,
     stopPrompt: c.stopPrompt ?? DEFAULT_STOP_PROMPT,
     resumePrompt: c.resumePrompt ?? DEFAULT_RESUME_PROMPT,
-    pauseTimeoutMinutes: c.pauseTimeoutMinutes ?? DEFAULT_PAUSE_TIMEOUT_MINUTES
+    pauseTimeoutMinutes: c.pauseTimeoutMinutes ?? DEFAULT_PAUSE_TIMEOUT_MINUTES,
+    excludeDirs: c.excludeDirs ?? []
   }
 }

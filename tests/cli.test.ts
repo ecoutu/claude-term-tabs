@@ -175,6 +175,24 @@ test('--all resumes a closed session in a new pane once it is chosen', () => {
   assert.deepEqual(w.opened, [['/w/gone-repo', 'claude --resume old-id']])
 })
 
+test('--all leaves out closed sessions in excludeDirs', () => {
+  const before = world()
+  assert.equal(run(parseArgs(['--all', '--list', '--no-llm', 'cube']), before.deps), 0)
+  assert.match(before.out.join('\n'), /Old cube spike/)
+  const w = world()
+  writeFileSync(w.deps.dirs.config, JSON.stringify({ excludeDirs: ['/w/gone-repo'] }))
+  assert.equal(run(parseArgs(['--all', '--list', '--no-llm', 'cube']), w.deps), 1)
+  assert.doesNotMatch(w.out.join('\n'), /Old cube spike/)
+  assert.match(w.out.join('\n'), /No matching sessions\./)
+})
+
+test('excludeDirs never hides a live session', () => {
+  const w = world()
+  writeFileSync(w.deps.dirs.config, JSON.stringify({ excludeDirs: ['/w/api-proxy'] }))
+  assert.equal(run(parseArgs(['--all', '--list', '--no-llm', 'envoy']), w.deps), 0)
+  assert.match(w.out.join('\n'), /Envoy api-accounts/)
+})
+
 test('--json prints a JSON array and implies --list', () => {
   const w = world()
   assert.equal(run(parseArgs(['--json', 'envoy']), w.deps), 0)

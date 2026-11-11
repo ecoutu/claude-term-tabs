@@ -32,7 +32,7 @@ Find a Claude Code session by what you remember and switch to its tab.
   --terminal NAME  iterm2 | wezterm (default: detected)
   -h, --help       show this help
 
-Config: ~/.config/claude-tabs/config.json  {"resumeCommand": "claude --resume {id}"}`
+Config: ~/.config/claude-tabs/config.json  {"resumeCommand": "claude --resume {id}", "excludeDirs": ["~/scratch"]}`
 
 /** Parsed command-line options. */
 export interface Options {
@@ -108,7 +108,7 @@ export function run (opts: Options, deps: Deps): number {
     const config = loadConfig(deps.dirs.config)
     const adapter = deps.resolveAdapter(opts.terminal)
     const panes = listPanesOrWarn(adapter, deps)
-    const pool = gatherCandidates(opts, deps, panes)
+    const pool = gatherCandidates(opts, deps, panes, config)
     const ctx: Context = { opts, deps, adapter, config, multiWindow: new Set(panes.map(p => p.windowIndex)).size > 1 }
     return search(ctx, pool)
   } catch (err) {
@@ -226,13 +226,13 @@ function toJson (c: Candidate, summary?: string): Record<string, unknown> {
   }
 }
 
-function gatherCandidates (opts: Options, deps: Deps, panes: Pane[]): Candidate[] {
+function gatherCandidates (opts: Options, deps: Deps, panes: Pane[], config: Config): Candidate[] {
   const cache = DigestCache.load(deps.dirs.cache, deps.stderr)
   const paneByTty = new Map(panes.map(p => [p.tty, p]))
   const live = collectLiveSessions({ sessionsDir: deps.dirs.sessions, projectsDir: deps.dirs.projects, exec: deps.exec, cache })
     .map(c => ({ ...c, pane: c.tty !== undefined ? paneByTty.get(c.tty) : undefined }))
   const closed = opts.all
-    ? listClosedSessions({ projectsDir: deps.dirs.projects, liveIds: new Set(live.map(c => c.digest.sessionId)), cache, dirExists: deps.dirExists })
+    ? listClosedSessions({ projectsDir: deps.dirs.projects, liveIds: new Set(live.map(c => c.digest.sessionId)), excludeDirs: config.excludeDirs, cache, dirExists: deps.dirExists })
     : []
   if (opts.all) cache.retainOnly(cache.touched())
   try {

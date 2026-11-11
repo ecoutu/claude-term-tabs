@@ -1,5 +1,5 @@
 import { readdirSync, statSync } from 'node:fs'
-import { isAbsolute, join, normalize } from 'node:path'
+import { isAbsolute, join, normalize, sep } from 'node:path'
 import type { DigestCache } from './cache.ts'
 import { extractDigest } from './transcript.ts'
 import type { Candidate } from './types.ts'
@@ -7,10 +7,11 @@ import type { Candidate } from './types.ts'
 const DEFAULT_RESUME = 'claude --resume {id}'
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/
 
-/** Closed sessions: every top-level transcript under projectsDir whose id is not live. */
+/** Closed sessions: every top-level transcript under projectsDir whose id is not live and whose latest cwd is not excluded. */
 export function listClosedSessions (opts: {
   projectsDir: string
   liveIds: Set<string>
+  excludeDirs: string[]
   cache: DigestCache
   dirExists: (p: string) => boolean
 }): Candidate[] {
@@ -20,10 +21,16 @@ export function listClosedSessions (opts: {
       .filter(f => f.isFile() && f.name.endsWith('.jsonl'))
       .map(f => ({ path: join(opts.projectsDir, d.name, f.name), sessionId: f.name.slice(0, -'.jsonl'.length) })))
     .filter(t => !opts.liveIds.has(t.sessionId))
-    .map(t => {
-      const digest = opts.cache.get(t.path, () => extractDigest(t.path, { sessionId: t.sessionId }))
-      return { digest, live: false, status: 'unknown' as const, dirGone: !isResumableDir(digest.cwd, opts.dirExists) }
-    })
+    .map(t => opts.cache.get(t.path, () => extractDigest(t.path, { sessionId: t.sessionId })))
+    .filter(digest => !isExcluded(digest.cwd, opts.excludeDirs))
+    .map(digest => ({ digest, live: false, status: 'unknown' as const, dirGone: !isResumableDir(digest.cwd, opts.dirExists) }))
+}
+
+/** True when cwd is one of `dirs` or below one of them. An unknown (empty) cwd is never excluded. */
+export function isExcluded (cwd: string, dirs: string[]): boolean {
+  if (cwd === '') return false
+  const c = normalize(cwd)
+  return dirs.some(d => c === d || c.startsWith(d.endsWith(sep) ? d : d + sep))
 }
 
 /** Shell command that resumes a session, from config `resumeCommand` (must contain `{id}`). */

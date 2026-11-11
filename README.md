@@ -90,9 +90,13 @@ Sessions already running are skipped, so running it twice is harmless. Snapshots
   "resumeCommand": "claude --dangerously-skip-permissions --resume {id}",
   "stopPrompt": "Pausing for a machine restart. ...",
   "resumePrompt": "Resumed after a machine restart. ...",
-  "pauseTimeoutMinutes": 10
+  "pauseTimeoutMinutes": 10,
+  "excludeDirs": ["~/.claude-mem/observer-sessions"]
 }
 ```
+
+`excludeDirs` leaves closed sessions out of `--all` when their working directory (the one ct
+shows and resumes in) is one of those directories or below one. Live sessions are always listed.
 
 ## Cost and speed
 
