@@ -96,3 +96,41 @@ test('the loop ends once only final states remain', async () => {
   await runStragglerUi(s.run, s.deps, s.io, s.advance)
   assert.ok(s.clock() <= POLL_MS * 2)
 })
+
+test('closing the fzf list reports no error when fzf exits before it answers', async () => {
+  const { mkdtempSync, writeFileSync, chmodSync, rmSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  // A stand-in fzf: answers list reloads, and exits on `abort` without replying, as fzf often does.
+  const bin = mkdtempSync(join(tmpdir(), 'ctt-fakefzf-'))
+  writeFileSync(join(bin, 'fzf'), `#!${process.execPath}
+const http = require('node:http')
+const [host, port] = process.argv[process.argv.indexOf('--listen') + 1].split(':')
+process.stdin.resume()
+http.createServer((req, res) => {
+  let body = ''
+  req.on('data', c => { body += c })
+  req.on('end', () => { if (body === 'abort') { req.socket.destroy(); process.exit(0) } res.end() })
+}).listen(Number(port), host)
+`)
+  chmodSync(join(bin, 'fzf'), 0o755)
+  const saved = { path: process.env.PATH, noExec: process.env.CTT_NO_REAL_EXEC, write: process.stderr.write }
+  const errors: string[] = []
+  process.env.PATH = `${bin}:${saved.path ?? ''}`
+  delete process.env.CTT_NO_REAL_EXEC
+  process.stderr.write = ((s: string) => { errors.push(String(s)); return true }) as typeof process.stderr.write
+  try {
+    const s = sim([['busy'], ['done']])
+    s.io.hasFzf = true
+    s.io.isTty = true
+    const sleep = s.io.sleep
+    s.io.sleep = async (ms: number) => { await new Promise(resolve => setTimeout(resolve, 200)); await sleep(ms) }
+    await runStragglerUi(s.run, s.deps, s.io, s.advance)
+  } finally {
+    process.env.PATH = saved.path
+    if (saved.noExec !== undefined) process.env.CTT_NO_REAL_EXEC = saved.noExec
+    process.stderr.write = saved.write
+    rmSync(bin, { recursive: true, force: true })
+  }
+  assert.deepEqual(errors.filter(e => e.includes('claude-term-tabs')), [])
+})

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeOwnerOnly } from '../fsutil.ts'
-import { createServer } from 'node:net'
+import { connect, createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { tickPause, stragglerLines, type PauseDeps, type PauseRun } from './run.ts'
 import { FINAL_STATES } from './state.ts'
@@ -13,6 +13,7 @@ import { shellQuote } from '../shell.ts'
 /** How often the straggler list refreshes. */
 export const POLL_MS = 3000
 const CLEAR = '\x1b[2J\x1b[H'
+const LISTEN_WAIT_MS = 2000
 const SAFE_PATH = /^[A-Za-z0-9._\/-]+$/
 const HEADER = 'ctt pause: Enter or double-click jumps to a session · ctrl-r re-sends the stop prompt · Esc stops waiting'
 
@@ -122,13 +123,15 @@ async function fzfUi (io: UiIo, initial: string[]): Promise<Ui> {
   child.on('exit', () => { exited = true })
   child.on('error', () => { exited = true })
   child.stdin.end(initial.join('\n'))
-  const post = async (action: string): Promise<void> => {
+  await listening(port, () => exited)
+  // `abort` closes fzf, which often exits before it answers, so its failure is expected.
+  const post = async (action: string, closing = false): Promise<void> => {
     if (exited) return
     try {
       const res = await fetch(`http://127.0.0.1:${port}`, { method: 'POST', headers: { 'x-api-key': env.FZF_API_KEY ?? '' }, body: action })
       if (!res.ok) process.stderr.write(`claude-term-tabs: the list refused an update (${res.status})\n`)
     } catch (err) {
-      if (!exited) process.stderr.write(`claude-term-tabs: could not update the list: ${(err as Error).message}\n`)
+      if (!exited && !closing) process.stderr.write(`claude-term-tabs: could not update the list: ${(err as Error).message}\n`)
     }
   }
   return {
@@ -137,11 +140,25 @@ async function fzfUi (io: UiIo, initial: string[]): Promise<Ui> {
       await post(reloadAction(linesFile))
     },
     finish: async () => {
-      await post('abort')
+      await post('abort', true)
       if (!exited) await new Promise<void>(resolve => child.once('exit', () => resolve()))
       rmSync(dir, { recursive: true, force: true })
     },
     closed: () => exited
+  }
+}
+
+/** Resolves once fzf accepts connections on `port`, it has exited, or LISTEN_WAIT_MS has passed. */
+async function listening (port: number, gone: () => boolean): Promise<void> {
+  const deadline = Date.now() + LISTEN_WAIT_MS
+  while (!gone() && Date.now() < deadline) {
+    const up = await new Promise<boolean>(resolve => {
+      const socket = connect(port, '127.0.0.1')
+      socket.once('connect', () => { socket.destroy(); resolve(true) })
+      socket.once('error', () => { resolve(false) })
+    })
+    if (up) return
+    await new Promise(resolve => setTimeout(resolve, 50))
   }
 }
 
