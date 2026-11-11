@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { completionProgram, main, parseArgs, realDeps, run, runCommand, type Deps } from '../src/cli.ts'
+import { completionProgram, completionWarning, main, parseArgs, realDeps, run, runCommand, type Deps } from '../src/cli.ts'
 import { flagLines, HELP } from '../src/help.ts'
 import { entry } from '../src/args.ts'
 import { spawnSync } from 'node:child_process'
@@ -73,6 +73,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     sleep: async () => {},
     self: ['node', 'ctt'],
     completionProgram: 'ctt',
+    completionWarning: () => undefined,
     shell: '/bin/bash'
   }
   return { deps, calls, out, err, focused, opened, sent, choose: (id: string) => { picked = id } }
@@ -427,6 +428,28 @@ test('ctt completion writes the completion program into the script', async () =>
   w.deps.completionProgram = 'claude-term-tabs'
   assert.equal(await runCommand(['completion', 'bash'], w.deps), 0)
   assert.match(w.out.join('\n'), /'claude-term-tabs' --complete bash /)
+})
+
+test('an installed ctt warns only when no lasting PATH entry has claude-term-tabs', () => {
+  const has = (...files: string[]) => (p: string) => files.includes(p)
+  const PATH = '/home/u/.npm/_npx/abc/node_modules/.bin:/proj/node_modules/.bin:/usr/local/bin:/usr/bin'
+  // npx alone, or a project-local install: only throwaway entries have it.
+  assert.match(completionWarning('claude-term-tabs', PATH, has('/home/u/.npm/_npx/abc/node_modules/.bin/claude-term-tabs')) ?? '',
+    /npm install --global claude-term-tabs/)
+  assert.match(completionWarning('claude-term-tabs', PATH, has('/proj/node_modules/.bin/claude-term-tabs')) ?? '', /npm install --global/)
+  // A global install, whether run as ctt from its own bin dir or through npx.
+  assert.equal(completionWarning('claude-term-tabs', PATH, has('/usr/local/bin/ctt', '/usr/local/bin/claude-term-tabs')), undefined)
+  // A clone's script calls its own path, so PATH doesn't matter.
+  assert.equal(completionWarning('/home/u/src/ctt/bin/claude-term-tabs', PATH, has()), undefined)
+})
+
+test('ctt completion prints the script and puts any warning on stderr', async () => {
+  const w = world()
+  w.deps.completionProgram = 'claude-term-tabs'
+  w.deps.completionWarning = program => `${program}: install it`
+  assert.equal(await runCommand(['completion', 'bash'], w.deps), 0)
+  assert.match(w.out.join('\n'), /'claude-term-tabs' --complete bash /)
+  assert.deepEqual(w.err, ['claude-term-tabs: install it'])
 })
 
 test('ctt completion without a shell picks it from $SHELL', async () => {

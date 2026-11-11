@@ -108,6 +108,8 @@ function completion (argv: string[], deps: Deps): number {
     throw new Error(`unknown shell "${shell}"${where} (supported: ${SHELLS.join(', ')}); run ${SHELLS.map(s => `ctt completion ${s}`).join(' or ')}`)
   }
   deps.stdout(completionScript(shell, deps.completionProgram))
+  const warning = deps.completionWarning(deps.completionProgram)
+  if (warning !== undefined) deps.stderr(warning)
   return EXIT_OK
 }
 

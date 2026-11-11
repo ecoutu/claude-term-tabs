@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { closeSync, openSync, readSync } from 'node:fs'
+import { accessSync, closeSync, constants, openSync, readSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { isatty } from 'node:tty'
 import { parseFlags, SEARCH_FLAGS } from './args.ts'
 import { DigestCache } from './cache.ts'
@@ -55,6 +56,8 @@ export interface Deps {
   self: string[]
   /** What the completion script runs to answer a Tab press. */
   completionProgram: string
+  /** Why the completion script won't work where it is going, if it won't. */
+  completionWarning: (program: string) => string | undefined
   /** The user's login shell ($SHELL), which `ctt completion` writes a script for by default. */
   shell: string | undefined
 }
@@ -290,6 +293,7 @@ export function realDeps (exec: Exec = realExec, installed = false): Deps {
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
     self: [process.execPath, process.argv[1]],
     completionProgram: completionProgram(process.argv[1], installed),
+    completionWarning: program => completionWarning(program, process.env.PATH ?? '', isProgram),
     shell: process.env.SHELL
   }
   return deps
@@ -302,6 +306,28 @@ export function realDeps (exec: Exec = realExec, installed = false): Deps {
  */
 export function completionProgram (argv1: string, installed: boolean): string {
   return installed ? 'claude-term-tabs' : argv1
+}
+
+/**
+ * Why a completion script calling `program` won't work, if it won't. A clone's script calls its own path; an installed
+ * package's calls claude-term-tabs from PATH. npx (its cache) and a project's node_modules/.bin are on PATH only for
+ * this run, so they don't count: without a lasting copy, every Tab press would fail with "command not found".
+ */
+export function completionWarning (program: string, path: string, isProgram: (p: string) => boolean): string | undefined {
+  if (program.includes('/')) return undefined
+  const lasting = path.split(':').filter(d => d !== '' && !d.includes('/_npx/') && !/\/node_modules\/\.bin\/?$/.test(d))
+  if (lasting.some(d => isProgram(join(d, program)))) return undefined
+  return "claude-term-tabs: it isn't on your PATH outside this run, so Tab completion won't work until you run: npm install --global claude-term-tabs"
+}
+
+/** True for an executable file. */
+function isProgram (p: string): boolean {
+  try {
+    accessSync(p, constants.X_OK)
+    return statSync(p).isFile()
+  } catch {
+    return false
+  }
 }
 
 /** Entry point used by bin/claude-term-tabs, which says whether it runs the installed package. */
