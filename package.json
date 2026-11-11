@@ -1,13 +1,13 @@
 {
-  "name": "claude-tabs",
+  "name": "claude-term-tabs",
   "version": "0.0.0-development",
   "private": true,
   "type": "module",
   "bin": {
-    "claude-tabs": "bin/claude-tabs"
+    "claude-term-tabs": "bin/claude-term-tabs"
   },
   "scripts": {
-    "test": "CT_NO_REAL_EXEC=1 node --test 'tests/**/*.test.ts'",
+    "test": "CTT_NO_REAL_EXEC=1 node --test 'tests/**/*.test.ts'",
     "check": "tsc",
     "prepare": "husky"
   },

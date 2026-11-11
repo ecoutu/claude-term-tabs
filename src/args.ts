@@ -19,7 +19,7 @@ type Values<T extends Flags> = { -readonly [K in keyof T]: T[K] extends { value:
 
 const HELP_FLAG = { short: 'h', describe: 'show this help' } as const satisfies Flag
 
-/** Flags of the search, `ct [query...]`. */
+/** Flags of the search, `ctt [query...]`. */
 export const SEARCH_FLAGS = {
   list: { describe: 'print matches, never switch' },
   all: { describe: 'include closed sessions (choosing one resumes it in a new tab)' },
@@ -29,14 +29,14 @@ export const SEARCH_FLAGS = {
   help: HELP_FLAG
 } as const satisfies Flags
 
-/** Flags of `ct pause`. */
+/** Flags of `ctt pause`. */
 export const PAUSE_FLAGS = {
   'auto-close': { describe: 'also exit each session and close its tab after its HANDOFF' },
   timeout: { value: 'MIN', describe: 'minutes to wait (default: pauseTimeoutMinutes, else 10)' },
   help: HELP_FLAG
 } as const satisfies Flags
 
-/** Flags of `ct resume`. */
+/** Flags of `ctt resume`. */
 export const RESUME_FLAGS = {
   'dry-run': { describe: 'print the commands instead' },
   'no-prompt': { describe: 'reopen without sending the resume prompt' },
@@ -44,7 +44,7 @@ export const RESUME_FLAGS = {
   help: HELP_FLAG
 } as const satisfies Flags
 
-/** Shells `ct completion` writes a script for. */
+/** Shells `ctt completion` writes a script for. */
 export const SHELLS = ['bash', 'zsh'] as const
 export type Shell = typeof SHELLS[number]
 
@@ -65,7 +65,7 @@ export function isCommand (word: string | undefined): word is Command {
   return word !== undefined && Object.hasOwn(COMMANDS, word)
 }
 
-/** The hidden first argument the completion scripts call ct with: `ct --complete <shell> <words>`. */
+/** The hidden first argument the completion scripts call ctt with: `ctt --complete <shell> <words>`. */
 export const COMPLETE_FLAG = '--complete'
 
 /**
@@ -112,7 +112,7 @@ function given (before: string[], flags: Flags): Set<string> {
 }
 
 /**
- * Answer the completion script's `ct --complete <shell> <words>`, where `words` is the command line up
+ * Answer the completion script's `ctt --complete <shell> <words>`, where `words` is the command line up
  * to the word being completed (the program name first). Subcommands are offered only as the first word;
  * flags (long form) when the word starts with `-`, minus those already given; a flag that takes a value
  * offers its choices or nothing, so the shell falls back to file names; nothing after `--`.
@@ -143,22 +143,22 @@ export function completions (shell: Shell, words: string[]): string[] {
 }
 
 /**
- * The completion script for `shell`. It registers both `ct` and `claude-tabs`, and runs `program`
- * (ct's own path) to answer each request. Adapted from yargs' scripts (MIT).
+ * The completion script for `shell`. It registers both `ctt` and `claude-term-tabs`, and runs `program`
+ * (ctt's own path) to answer each request. Adapted from yargs' scripts (MIT).
  */
 export function completionScript (shell: Shell, program: string): string {
-  const ct = `${shellQuote(program)} ${COMPLETE_FLAG} ${shell}`
+  const ctt = `${shellQuote(program)} ${COMPLETE_FLAG} ${shell}`
   if (shell === 'zsh') {
-    return `#compdef ct claude-tabs
-###-begin-ct-completions-###
+    return `#compdef ctt claude-term-tabs
+###-begin-ctt-completions-###
 #
-# ct tab completion for zsh. Install: ct completion zsh >> ~/.zshrc (after compinit)
+# ctt tab completion for zsh. Install: ctt completion zsh >> ~/.zshrc (after compinit)
 #
-_ct_completions()
+_ctt_completions()
 {
   local reply
   local si=$IFS
-  IFS=$'\\n' reply=($(${ct} "\${words[@]:0:$CURRENT}"))
+  IFS=$'\\n' reply=($(${ctt} "\${words[@]:0:$CURRENT}"))
   IFS=$si
   if [[ \${#reply} -gt 0 ]]; then
     _describe 'values' reply
@@ -169,23 +169,23 @@ _ct_completions()
   fi
 }
 if [[ "\${zsh_eval_context[-1]}" == "loadautofunc" ]]; then
-  _ct_completions "$@"
+  _ctt_completions "$@"
 else
-  compdef _ct_completions ct claude-tabs
+  compdef _ctt_completions ctt claude-term-tabs
 fi
-###-end-ct-completions-###`
+###-end-ctt-completions-###`
   }
-  return `###-begin-ct-completions-###
+  return `###-begin-ctt-completions-###
 #
-# ct tab completion for bash 4 or later. Install: ct completion bash >> ~/.bashrc
+# ctt tab completion for bash 4 or later. Install: ctt completion bash >> ~/.bashrc
 #
-_ct_completions()
+_ctt_completions()
 {
     local cur_word type_list
     cur_word="\${COMP_WORDS[COMP_CWORD]}"
     # bash splits --terminal=w into --terminal, = and w
     [[ $cur_word == = ]] && cur_word=''
-    mapfile -t type_list < <(${ct} "\${COMP_WORDS[@]:0:COMP_CWORD+1}")
+    mapfile -t type_list < <(${ctt} "\${COMP_WORDS[@]:0:COMP_CWORD+1}")
     # nothing to offer: leave COMPREPLY empty so bash completes file names
     if [[ \${#type_list[@]} -eq 0 ]]; then
       COMPREPLY=()
@@ -193,6 +193,6 @@ _ct_completions()
     fi
     mapfile -t COMPREPLY < <(compgen -W "$( printf '%q ' "\${type_list[@]}" )" -- "\${cur_word}")
 }
-complete -o bashdefault -o default -F _ct_completions ct claude-tabs
-###-end-ct-completions-###`
+complete -o bashdefault -o default -F _ctt_completions ctt claude-term-tabs
+###-end-ctt-completions-###`
 }

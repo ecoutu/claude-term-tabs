@@ -5,12 +5,12 @@ import type { PauseDeps, PauseRun, Tracked } from '../src/pause/run.ts'
 import { DEFAULT_RESUME_PROMPT } from '../src/config.ts'
 
 test('fzf args listen locally, jump on enter and double-click, and re-send on ctrl-r', () => {
-  const args = fzfArgs(4321, ["/usr/bin/node", "/x/it's/ct"])
+  const args = fzfArgs(4321, ["/usr/bin/node", "/x/it's/ctt"])
   const joined = args.join(' ')
   assert.ok(args.includes('--listen') && args[args.indexOf('--listen') + 1] === '127.0.0.1:4321')
-  assert.ok(joined.includes("enter:execute-silent('/usr/bin/node' '/x/it'\\''s/ct' _focus {1})"))
-  assert.ok(joined.includes("double-click:execute-silent('/usr/bin/node' '/x/it'\\''s/ct' _focus {1})"))
-  assert.ok(joined.includes("ctrl-r:execute-silent('/usr/bin/node' '/x/it'\\''s/ct' _send-stop {1})"))
+  assert.ok(joined.includes("enter:execute-silent('/usr/bin/node' '/x/it'\\''s/ctt' _focus {1})"))
+  assert.ok(joined.includes("double-click:execute-silent('/usr/bin/node' '/x/it'\\''s/ctt' _focus {1})"))
+  assert.ok(joined.includes("ctrl-r:execute-silent('/usr/bin/node' '/x/it'\\''s/ctt' _send-stop {1})"))
   assert.equal(args[args.indexOf('--delimiter') + 1], '\t')
   assert.equal(args[args.indexOf('--with-nth') + 1], '2..')
 })
@@ -40,7 +40,7 @@ function sim (states: Array<Array<Tracked['state']>>) {
     return { ...r, tracked: states[tick].map((s, i) => tracked(`s${i}`, s)) }
   }
   const writes: string[] = []
-  const io = { hasFzf: false, isTty: false, timeoutMs: 60_000, self: ['node', 'ct'], write: (s: string) => { writes.push(s) }, sleep: async (ms: number) => { clock += ms } }
+  const io = { hasFzf: false, isTty: false, timeoutMs: 60_000, self: ['node', 'ctt'], write: (s: string) => { writes.push(s) }, sleep: async (ms: number) => { clock += ms } }
   return { deps, run, advance, writes, io, ticks: () => tick, clock: () => clock }
 }
 
@@ -66,8 +66,8 @@ test('the timeout ends the loop and returns the latest run', async () => {
   assert.ok(s.clock() >= POLL_MS * 4 && s.clock() <= POLL_MS * 5)
 })
 
-test('reload action carries only a ct-chosen file path, never list data', () => {
-  assert.equal(reloadAction('/tmp/ct-abc/lines'), "reload(cat '/tmp/ct-abc/lines')")
+test('reload action carries only a ctt-chosen file path, never list data', () => {
+  assert.equal(reloadAction('/tmp/ctt-abc/lines'), "reload(cat '/tmp/ctt-abc/lines')")
   assert.throws(() => reloadAction('/tmp/x)+execute(rm)/lines'), /unsafe/)
 })
 

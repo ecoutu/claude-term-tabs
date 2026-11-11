@@ -1,10 +1,10 @@
-# claude-tabs
+# claude-term-tabs
 
 Find a running Claude Code session by what you remember about it, and switch to its terminal tab.
 
 ```bash
-ct working on pause in claude-tabs
-# → Pause sessions before a restart · claude-tabs · tab 4
+ctt working on pause in claude-term-tabs
+# → Pause sessions before a restart · claude-term-tabs · tab 4
 ```
 
 Works with iTerm2 and WezTerm on macOS.
@@ -14,9 +14,9 @@ Works with iTerm2 and WezTerm on macOS.
 Needs Node 24 or later. `fzf` is optional; without it the picker is a numbered list.
 
 ```bash
-git clone https://github.com/ecoutu/claude-tabs ~/ecoutu/src/claude-tabs
-ln -s ~/ecoutu/src/claude-tabs/bin/claude-tabs ~/bin/claude-tabs
-ln -s claude-tabs ~/bin/ct
+git clone https://github.com/ecoutu/claude-term-tabs ~/ecoutu/src/claude-term-tabs
+ln -s ~/ecoutu/src/claude-term-tabs/bin/claude-term-tabs ~/bin/claude-term-tabs
+ln -s claude-term-tabs ~/bin/ctt
 ```
 
 The first switch in iTerm2 asks macOS for permission to control iTerm2. Allow it, or grant it
@@ -24,23 +24,23 @@ later in System Settings > Privacy & Security > Automation.
 
 ### Tab completion
 
-`ct completion zsh` or `ct completion bash` prints a completion script (plain `ct completion` picks
+`ctt completion zsh` or `ctt completion bash` prints a completion script (plain `ctt completion` picks
 the shell from `$SHELL`). Append it to your shell's startup file:
 
 ```bash
-ct completion zsh >> ~/.zshrc     # after compinit runs
-ct completion bash >> ~/.bashrc   # bash 4 or later
+ctt completion zsh >> ~/.zshrc     # after compinit runs
+ctt completion bash >> ~/.bashrc   # bash 4 or later
 ```
 
-Tab then completes ct's subcommands (`pause`, `resume`, `completion`) as the first word, each one's
+Tab then completes ctt's subcommands (`pause`, `resume`, `completion`) as the first word, each one's
 flags, and the terminal names after `--terminal`; after `--snapshot` it falls back to file names. It
-never completes session titles. The script completes both `ct` and `claude-tabs`, and runs ct from
+never completes session titles. The script completes both `ctt` and `claude-term-tabs`, and runs ctt from
 where it was when you generated the script, so generate it again if you move the clone.
 
 ## Usage
 
 ```
-ct [query...] [--list] [--all] [--json] [--no-llm] [--terminal iterm2|wezterm]
+ctt [query...] [--list] [--all] [--json] [--no-llm] [--terminal iterm2|wezterm]
 ```
 
 | Situation | What happens |
@@ -61,12 +61,12 @@ The search looks at each session's title, repo, worktree, branch and your first 
 Before restarting the machine:
 
 ```bash
-ct pause                # ask every session to wrap up and write a HANDOFF
-ct pause --auto-close   # also exit each session and close its tab once its HANDOFF is in
-ct pause --timeout 20   # wait up to 20 minutes (default 10)
+ctt pause                # ask every session to wrap up and write a HANDOFF
+ctt pause --auto-close   # also exit each session and close its tab once its HANDOFF is in
+ctt pause --timeout 20   # wait up to 20 minutes (default 10)
 ```
 
-`ct pause` records every live session to a snapshot first, then types the stop prompt into each
+`ctt pause` records every live session to a snapshot first, then types the stop prompt into each
 one and shows the sessions it is still waiting on, refreshed every 3 seconds. Enter or a
 double-click jumps to that session's tab; ctrl-r re-sends the stop prompt; Esc stops waiting.
 When the list empties it prints `Safe to restart.`
@@ -76,30 +76,30 @@ When the list empties it prints `Safe to restart.`
 | busy | Working; its transcript is still growing |
 | may need you | Busy for 2 minutes with no new output, probably a permission prompt |
 | idle, no HANDOFF | Stopped without writing a HANDOFF; re-send or check it |
-| in shell mode | Its input is in shell mode, so ct will not type into it |
+| in shell mode | Its input is in shell mode, so ctt will not type into it |
 | can't reach | Not in a supported terminal pane |
 | exited | The process ended without a HANDOFF |
 | exit failed | `--auto-close` sent `/exit` but the session did not end |
 
-ct only ever types the stop prompt and, with `--auto-close`, `/exit` followed by `exit` for the
+ctt only ever types the stop prompt and, with `--auto-close`, `/exit` followed by `exit` for the
 shell left behind. It never answers a permission prompt or interrupts a busy session, and it never
 closes a session that has not written a HANDOFF. Sessions without one are still recorded.
 
 After restarting:
 
 ```bash
-ct resume               # reopen every recorded session in its window and tab order
-ct resume --dry-run     # print the commands instead
-ct resume --no-prompt   # reopen without sending the resume prompt
+ctt resume               # reopen every recorded session in its window and tab order
+ctt resume --dry-run     # print the commands instead
+ctt resume --no-prompt   # reopen without sending the resume prompt
 ```
 
 Sessions already running are skipped, so running it twice is harmless. Snapshots live in
-`~/.local/state/claude-tabs/snapshots/` and are pruned after 30 days. `ct resume` uses the newest;
+`~/.local/state/claude-term-tabs/snapshots/` and are pruned after 30 days. `ctt resume` uses the newest;
 `--snapshot FILE` picks another.
 
 ## Config
 
-`~/.config/claude-tabs/config.json`, every key optional:
+`~/.config/claude-term-tabs/config.json`, every key optional:
 
 ```json
 {
@@ -111,7 +111,7 @@ Sessions already running are skipped, so running it twice is harmless. Snapshots
 }
 ```
 
-`excludeDirs` leaves closed sessions out of `--all` when their working directory (the one ct
+`excludeDirs` leaves closed sessions out of `--all` when their working directory (the one ctt
 shows and resumes in) is one of those directories or below one. Live sessions are always listed.
 
 ## Cost and speed
@@ -128,7 +128,7 @@ Measured on 2026-11-10 with 19 live sessions:
 Haiku runs through `claude -p` with no tools, no MCP servers, no settings, a short system prompt,
 and `--no-session-persistence`, so its calls never show up as sessions.
 
-Digests are cached in `~/.cache/claude-tabs/digests.json` (owner-only), keyed by transcript size
+Digests are cached in `~/.cache/claude-term-tabs/digests.json` (owner-only), keyed by transcript size
 and modification time. Delete it any time.
 
 ## Development
@@ -154,15 +154,15 @@ version; the git tag is the version.
 
 iTerm2:
 
-1. `ct --list <words from a tab title>` prints that tab with the right `tab N`.
-2. `ct <words from a tab title>` switches to it.
-3. `ct claude-tabs` (or any phrase matching two sessions) opens the fzf picker; Enter switches.
-4. `ct --all <words from a closed session>` resumes it in a new tab.
+1. `ctt --list <words from a tab title>` prints that tab with the right `tab N`.
+2. `ctt <words from a tab title>` switches to it.
+3. `ctt claude-term-tabs` (or any phrase matching two sessions) opens the fzf picker; Enter switches.
+4. `ctt --all <words from a closed session>` resumes it in a new tab.
 
 WezTerm: the same four checks, run inside WezTerm.
 
 Pause and resume:
 
-1. `ct resume --dry-run` after a `ct pause` lists every session in tab order.
-2. `ct pause` with two scratch sessions shows them leaving the list as they write HANDOFFs.
-3. One full restart cycle: `ct pause --auto-close`, restart, `ct resume`.
+1. `ctt resume --dry-run` after a `ctt pause` lists every session in tab order.
+2. `ctt pause` with two scratch sessions shows them leaving the list as they write HANDOFFs.
+3. One full restart cycle: `ctt pause --auto-close`, restart, `ctt resume`.

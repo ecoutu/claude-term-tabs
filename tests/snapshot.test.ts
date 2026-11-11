@@ -7,7 +7,7 @@ import { latestSnapshot, pruneSnapshots, saveSnapshot, snapshotFrom } from '../s
 import type { Candidate } from '../src/types.ts'
 
 const NOW = Date.parse('2026-11-10T18:00:00.123Z')
-const dir = () => join(mkdtempSync(join(tmpdir(), 'ct-snap-')), 'snapshots')
+const dir = () => join(mkdtempSync(join(tmpdir(), 'ctt-snap-')), 'snapshots')
 const cand: Candidate = {
   live: true, status: 'idle', pid: 1,
   digest: { sessionId: 'S1', cwd: '/w/api-proxy', repo: 'api-proxy', branch: 'main', title: 'Envoy', lastActive: 1 },

@@ -7,7 +7,7 @@ import { DEFAULT_RESUME_PROMPT, DEFAULT_STOP_PROMPT, loadConfig } from '../src/c
 import { fixture } from './helpers.ts'
 
 const configFile = (body: unknown) => {
-  const file = join(mkdtempSync(join(tmpdir(), 'ct-cfg-')), 'config.json')
+  const file = join(mkdtempSync(join(tmpdir(), 'ctt-cfg-')), 'config.json')
   writeFileSync(file, typeof body === 'string' ? body : JSON.stringify(body))
   return file
 }
@@ -23,13 +23,13 @@ test('missing file gives defaults', () =>
   }))
 
 test('every key can be overridden', () =>
-  assert.deepEqual(loadConfig(configFile({ resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ct-test-missing'] })),
-    { resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ct-test-missing'] }))
+  assert.deepEqual(loadConfig(configFile({ resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ctt-test-missing'] })),
+    { resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ctt-test-missing'] }))
 
 test('excludeDirs expands ~ and drops trailing slashes', () =>
   // Paths that can't exist, so realpath adds nothing whatever the host's symlinks are.
-  assert.deepEqual(loadConfig(configFile({ excludeDirs: ['~/.ct-test-missing/observer-sessions/', '/ct-test-missing/scratch//'] })).excludeDirs,
-    [join(homedir(), '.ct-test-missing', 'observer-sessions'), '/ct-test-missing/scratch']))
+  assert.deepEqual(loadConfig(configFile({ excludeDirs: ['~/.ctt-test-missing/observer-sessions/', '/ctt-test-missing/scratch//'] })).excludeDirs,
+    [join(homedir(), '.ctt-test-missing', 'observer-sessions'), '/ctt-test-missing/scratch']))
 
 test('bad values throw naming the key', () => {
   assert.throws(() => loadConfig(configFile({ pauseTimeoutMinutes: 0 })), /pauseTimeoutMinutes/)
@@ -42,7 +42,7 @@ test('bad values throw naming the key', () => {
 })
 
 test('an excluded dir reached through a symlink also matches its real path', () => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'ct-cfg-link-')))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'ctt-cfg-link-')))
   mkdirSync(join(root, 'real'))
   symlinkSync(join(root, 'real'), join(root, 'link'))
   assert.deepEqual(loadConfig(configFile({ excludeDirs: [join(root, 'link')] })).excludeDirs, [join(root, 'link'), join(root, 'real')])

@@ -9,7 +9,7 @@ import type { Digest } from '../src/types.ts'
 const digest = (title: string): Digest => ({ sessionId: 'S', cwd: '/x', repo: 'x', title, lastActive: 1 })
 
 function setup () {
-  const dir = mkdtempSync(join(tmpdir(), 'ct-cache-'))
+  const dir = mkdtempSync(join(tmpdir(), 'ctt-cache-'))
   const transcript = join(dir, 't.jsonl')
   writeFileSync(transcript, '{}\n')
   return { dir, transcript, cacheFile: join(dir, 'nested', 'digests.json') }

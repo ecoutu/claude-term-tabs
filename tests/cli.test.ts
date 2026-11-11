@@ -22,7 +22,7 @@ const SESSIONS: FakeSession[] = [
 ]
 
 function world (opts: { windows?: number, claude?: (input: string) => { status: number, stdout: string } } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'ct-cli-'))
+  const root = mkdtempSync(join(tmpdir(), 'ctt-cli-'))
   const dirs = { sessions: join(root, 'sessions'), projects: join(root, 'projects'), cache: join(root, 'cache', 'd.json'), config: join(root, 'config.json'), snapshots: join(root, 'snapshots') }
   mkdirSync(dirs.sessions)
   for (const s of SESSIONS) {
@@ -71,7 +71,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     pick: cands => cands.find(c => c.digest.sessionId === picked),
     isAlive: () => true,
     sleep: async () => {},
-    self: ['node', 'ct'],
+    self: ['node', 'ctt'],
     shell: '/bin/bash'
   }
   return { deps, calls, out, err, focused, opened, sent, choose: (id: string) => { picked = id } }
@@ -210,7 +210,7 @@ test('--help lists the pause and resume subcommands and their flags', () => {
   const w = world()
   assert.equal(run(parseArgs(['--help']), w.deps), 0)
   const help = w.out.join('\n')
-  for (const s of ['ct pause', '--auto-close', '--timeout', 'ct resume', '--dry-run', '--no-prompt', '--snapshot']) assert.ok(help.includes(s), s)
+  for (const s of ['ctt pause', '--auto-close', '--timeout', 'ctt resume', '--dry-run', '--no-prompt', '--snapshot']) assert.ok(help.includes(s), s)
 })
 
 test('-h and --help on pause and resume print the help without pausing or resuming', async () => {
@@ -267,7 +267,7 @@ test('no local match with haiku down says so instead of no matches', () => {
   assert.match(w.out.join('\n'), /Haiku was unavailable/)
 })
 
-test('ct pause types the stop prompt into every live session and reports stragglers', async () => {
+test('ctt pause types the stop prompt into every live session and reports stragglers', async () => {
   const w = world()
   w.deps.isTty = false
   const code = await runCommand(['pause', '--timeout', '0.001'], w.deps)
@@ -277,7 +277,7 @@ test('ct pause types the stop prompt into every live session and reports straggl
   assert.match(w.out.join('\n'), /0 of 3 sessions wrote a HANDOFF/)
 })
 
-test('ct resume --dry-run prints commands from the latest snapshot and skips live sessions', async () => {
+test('ctt resume --dry-run prints commands from the latest snapshot and skips live sessions', async () => {
   const w = world()
   const snap: Snapshot = { id: '2026-11-10T00-00-00.000Z', createdAt: '2026-11-10T00:00:00.000Z', sessions: [
     { sessionId: 'envoy-id', cwd: '/w/api-proxy', repo: 'api-proxy', windowIndex: 1, tabIndex: 1, handoffWritten: true },
@@ -292,7 +292,7 @@ test('ct resume --dry-run prints commands from the latest snapshot and skips liv
   assert.deepEqual(w.opened, [])
 })
 
-test('ct resume without a snapshot says so', async () => {
+test('ctt resume without a snapshot says so', async () => {
   const w = world()
   assert.equal(await runCommand(['resume'], w.deps), 1)
   assert.match(w.out.join('\n'), /No snapshot found/)
@@ -353,7 +353,7 @@ test('--terminal without a name is a usage error', () =>
 
 async function complete (words: string[], shell = '/bin/bash'): Promise<string[]> {
   const w = world()
-  assert.equal(await runCommand(['--complete', shell.includes('zsh') ? 'zsh' : 'bash', 'ct', ...words], w.deps), 0)
+  assert.equal(await runCommand(['--complete', shell.includes('zsh') ? 'zsh' : 'bash', 'ctt', ...words], w.deps), 0)
   return w.out.join('\n').split('\n').filter(s => s !== '')
 }
 
@@ -364,7 +364,7 @@ test('completion offers the public subcommands and never the internal ones', asy
   assert.deepEqual((await complete(['_'])).filter(s => s.startsWith('_')), [])
 })
 
-test('completion offers the search flags after ct', async () => {
+test('completion offers the search flags after ctt', async () => {
   const words = await complete(['--'])
   for (const flag of ['--list', '--all', '--json', '--no-llm', '--terminal', '--help']) assert.ok(words.includes(flag), `${flag} in ${words.join(' ')}`)
   assert.ok(!words.some(s => s.includes('_focus') || s.includes('_send-stop')))
@@ -386,7 +386,7 @@ test('zsh completion describes each subcommand', async () => {
   assert.ok(words.some(s => /^pause:\S/.test(s)), words.join(' '))
 })
 
-async function script (argv: string[], shell = '/bin/bash', self = 'ct'): Promise<{ code?: number, out: string, err: string }> {
+async function script (argv: string[], shell = '/bin/bash', self = 'ctt'): Promise<{ code?: number, out: string, err: string }> {
   const w = world()
   w.deps.self = ['node', self]
   w.deps.shell = shell === '' ? undefined : shell
@@ -394,34 +394,34 @@ async function script (argv: string[], shell = '/bin/bash', self = 'ct'): Promis
   return { code, out: w.out.join('\n'), err: w.err.join('\n') }
 }
 
-test('ct completion bash and zsh print a script that completes both ct and claude-tabs', async () => {
-  const bash = await script(['completion', 'bash'], '/bin/zsh', '/home/u/bin/claude-tabs')
+test('ctt completion bash and zsh print a script that completes both ctt and claude-term-tabs', async () => {
+  const bash = await script(['completion', 'bash'], '/bin/zsh', '/home/u/bin/claude-term-tabs')
   assert.equal(bash.code, 0)
-  assert.match(bash.out, /^complete .*-F _ct_completions ct claude-tabs$/m)
-  assert.match(bash.out, /'\/home\/u\/bin\/claude-tabs' --complete bash /)
-  const zsh = await script(['completion', 'zsh'], '/bin/bash', '/home/u/bin/ct')
+  assert.match(bash.out, /^complete .*-F _ctt_completions ctt claude-term-tabs$/m)
+  assert.match(bash.out, /'\/home\/u\/bin\/claude-term-tabs' --complete bash /)
+  const zsh = await script(['completion', 'zsh'], '/bin/bash', '/home/u/bin/ctt')
   assert.equal(zsh.code, 0)
-  assert.match(zsh.out, /^#compdef ct claude-tabs$/m)
-  assert.match(zsh.out, /compdef _ct_completions ct claude-tabs/)
-  assert.match(zsh.out, /'\/home\/u\/bin\/ct' --complete zsh /)
+  assert.match(zsh.out, /^#compdef ctt claude-term-tabs$/m)
+  assert.match(zsh.out, /compdef _ctt_completions ctt claude-term-tabs/)
+  assert.match(zsh.out, /'\/home\/u\/bin\/ctt' --complete zsh /)
   assert.match(zsh.out, /compset -P '\*='\n\s*_default/)
 })
 
-test('ct completion without a shell picks it from $SHELL', async () => {
-  assert.match((await script(['completion'], '/usr/bin/zsh')).out, /^#compdef ct claude-tabs$/m)
+test('ctt completion without a shell picks it from $SHELL', async () => {
+  assert.match((await script(['completion'], '/usr/bin/zsh')).out, /^#compdef ctt claude-term-tabs$/m)
   assert.match((await script(['completion'], '/bin/bash')).out, /^complete /m)
 })
 
-test('ct completion without a shell refuses a $SHELL that is not bash or zsh', async () => {
+test('ctt completion without a shell refuses a $SHELL that is not bash or zsh', async () => {
   for (const shell of ['/usr/bin/fish', '']) {
     const r = await script(['completion'], shell)
     assert.equal(r.code, 2, shell)
     assert.equal(r.out, '')
-    assert.match(r.err, /unknown shell.*ct completion bash.*ct completion zsh/)
+    assert.match(r.err, /unknown shell.*ctt completion bash.*ctt completion zsh/)
   }
 })
 
-test('ct completion rejects other shells, extra words and unknown flags, and -h prints the help', async () => {
+test('ctt completion rejects other shells, extra words and unknown flags, and -h prints the help', async () => {
   for (const argv of [['completion', 'fish'], ['completion', 'bash', 'zsh'], ['completion', 'pause'], ['completion', '--bogus']]) {
     const r = await script(argv)
     assert.equal(r.code, 2, argv.join(' '))
@@ -430,10 +430,10 @@ test('ct completion rejects other shells, extra words and unknown flags, and -h 
   for (const argv of [['completion', '-h'], ['completion', 'zsh', '--help']]) assert.deepEqual(await script(argv), { code: 0, out: HELP, err: '' })
 })
 
-test('--help lists ct completion', () => assert.match(HELP, /ct completion \[bash\|zsh\]/))
+test('--help lists ctt completion', () => assert.match(HELP, /ctt completion \[bash\|zsh\]/))
 
 test('the completion query flag is an unknown flag everywhere but as the first word', async () => {
-  for (const argv of [['pause', '--complete'], ['resume', '--dry-run', '--complete', 'bash', 'ct'], ['completion', '--complete']]) {
+  for (const argv of [['pause', '--complete'], ['resume', '--dry-run', '--complete', 'bash', 'ctt'], ['completion', '--complete']]) {
     const w = world()
     assert.equal(await runCommand(argv, w.deps), 2, argv.join(' '))
     assert.deepEqual(w.out, [], argv.join(' '))
@@ -441,7 +441,7 @@ test('the completion query flag is an unknown flag everywhere but as the first w
     assert.match(w.err.join('\n'), /--complete/)
   }
   assert.throws(() => parseArgs(['foo', '--complete']), /--complete/)
-  assert.equal(await runCommand(['--complete', 'fish', 'ct', ''], world().deps), 2)
+  assert.equal(await runCommand(['--complete', 'fish', 'ctt', ''], world().deps), 2)
   assert.equal(await runCommand(['--complete'], world().deps), 2)
 })
 
@@ -461,7 +461,7 @@ test('odd flags are node:util usage errors that exit 2', async () => {
   for (const argv of [['-1'], ['--h'], ['-_'], ['-h0'], ['--_'], ['--$0', 'x'], ['x', '--complete', 'bash'], ['--list=false']]) {
     const r = await mainExit(argv)
     assert.equal(r.code, 2, argv.join(' '))
-    assert.match(r.err, /^claude-tabs: (Unknown option|Option)/, argv.join(' '))
+    assert.match(r.err, /^claude-term-tabs: (Unknown option|Option)/, argv.join(' '))
   }
   const w = world()
   for (const argv of [['pause', '-1'], ['pause', '--h'], ['resume', '-h0'], ['resume', '-_'], ['completion', '--h']]) assert.equal(await runCommand(argv, w.deps), 2, argv.join(' '))
@@ -490,7 +490,7 @@ test('flags that take a value complete their values or nothing', async () => {
   assert.deepEqual(await complete(['pause', '--timeout=1'], '/bin/zsh'), [])
 })
 
-test('ct completion completes the shell names', async () => {
+test('ctt completion completes the shell names', async () => {
   assert.deepEqual(await complete(['completion', '']), ['bash', 'zsh'])
   assert.deepEqual(await complete(['completion', 'z']), ['zsh'])
   assert.deepEqual(await complete(['completion', 'zsh', '']), [])
@@ -536,9 +536,9 @@ test('zsh completion escapes colons in every word it offers', () => {
   assert.equal(entry('bash', 'a:b', 'say: hi'), 'a:b')
 })
 
-test('a completion request answers without loading the rest of ct', () => {
+test('a completion request answers without loading the rest of ctt', () => {
   const hook = 'data:text/javascript,import{registerHooks}from"node:module";registerHooks({resolve(s,c,n){const r=n(s,c);process.stderr.write("loaded "+r.url+"\\n");return r}})'
-  const r = spawnSync(process.execPath, ['--import', hook, join(import.meta.dirname, '..', 'bin', 'claude-tabs'), '--complete', 'bash', 'ct', '--'], { encoding: 'utf8' })
+  const r = spawnSync(process.execPath, ['--import', hook, join(import.meta.dirname, '..', 'bin', 'claude-term-tabs'), '--complete', 'bash', 'ctt', '--'], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
   assert.deepEqual(r.stdout.trim().split('\n'), ['--list', '--all', '--json', '--no-llm', '--terminal', '--help'])
   const loaded = r.stderr.split('\n').filter(l => l.includes('/src/')).map(l => l.slice(l.indexOf('/src/') + 1))
@@ -553,10 +553,10 @@ test('the flag column fits the longest label', () => {
 })
 
 test('--help starts with usage lines built from the subcommand tables', () => {
-  assert.ok(HELP.startsWith(`usage: ct [query...] [options]
-       ct pause [--auto-close] [--timeout MIN]
-       ct resume [--dry-run] [--no-prompt] [--snapshot FILE]
-       ct completion [bash|zsh]
+  assert.ok(HELP.startsWith(`usage: ctt [query...] [options]
+       ctt pause [--auto-close] [--timeout MIN]
+       ctt resume [--dry-run] [--no-prompt] [--snapshot FILE]
+       ctt completion [bash|zsh]
 
 Find a Claude Code session`), HELP)
 })

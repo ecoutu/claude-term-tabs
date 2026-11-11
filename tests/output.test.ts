@@ -16,7 +16,7 @@ const pipeline = (script: string, reader: string) => {
 }
 
 test('output written to a pipe arrives whole, past the 64 KiB pipe buffer', () => {
-  // The reader starts late, so the pipe fills while ct is still writing.
+  // The reader starts late, so the pipe fills while ctt is still writing.
   const r = pipeline(writeBig, '(sleep 1; wc -c)')
   assert.equal(r.stderr, '')
   assert.equal(r.status, 0)
@@ -40,7 +40,7 @@ test('a pipe already made non-blocking is retried until every byte is out', () =
 })
 
 test('a completion request answers through a pipe', () => {
-  const r = spawnSync('bash', ['-c', 'set -o pipefail; "$0" --complete bash ct pa | cat', join(root, 'bin', 'claude-tabs')], { encoding: 'utf8' })
+  const r = spawnSync('bash', ['-c', 'set -o pipefail; "$0" --complete bash ctt pa | cat', join(root, 'bin', 'claude-term-tabs')], { encoding: 'utf8' })
   assert.equal(r.stderr, '')
   assert.equal(r.status, 0)
   assert.equal(r.stdout, 'pause\n')

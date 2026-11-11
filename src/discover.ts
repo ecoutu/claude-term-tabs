@@ -14,7 +14,7 @@ export function liveWithPanes (deps: Deps, adapter: TerminalAdapter | undefined)
   try {
     cache.save()
   } catch (err) {
-    deps.stderr(`claude-tabs: could not save cache: ${(err as Error).message}`)
+    deps.stderr(`claude-term-tabs: could not save cache: ${(err as Error).message}`)
   }
   return live
 }
@@ -25,7 +25,7 @@ export function listPanesOrWarn (adapter: TerminalAdapter | undefined, deps: Dep
   try {
     return adapter.listPanes()
   } catch (err) {
-    deps.stderr(`claude-tabs: ${(err as Error).message}`)
+    deps.stderr(`claude-term-tabs: ${(err as Error).message}`)
     return []
   }
 }

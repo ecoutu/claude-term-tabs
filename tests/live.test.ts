@@ -16,7 +16,7 @@ const opts = (exec: Exec) => ({
   sessionsDir: fixture('sessions'),
   projectsDir: fixture('projects'),
   exec,
-  cache: DigestCache.load(join(mkdtempSync(join(tmpdir(), 'ct-live-')), 'c.json'), () => {})
+  cache: DigestCache.load(join(mkdtempSync(join(tmpdir(), 'ctt-live-')), 'c.json'), () => {})
 })
 
 test('keeps live cli sessions with tty', () => {
@@ -51,7 +51,7 @@ test('ps failure throws', () => {
 
 test('a pid whose process started after the session file is a reused pid', () => {
   const now = Date.now()
-  const dir = mkdtempSync(join(tmpdir(), 'ct-reuse-'))
+  const dir = mkdtempSync(join(tmpdir(), 'ctt-reuse-'))
   writeFileSync(join(dir, '42.json'), JSON.stringify({ pid: 42, sessionId: 'R', cwd: '/x', status: 'idle', entrypoint: 'cli', startedAt: now - 3 * 3_600_000 }))
   writeFileSync(join(dir, '43.json'), JSON.stringify({ pid: 43, sessionId: 'K', cwd: '/x', status: 'idle', entrypoint: 'cli', startedAt: now - 3 * 3_600_000 }))
   const ps: Exec = () => ({ status: 0, stdout: '42 ttys001 05:00 claude\n43 ttys002 03:00:05 claude\n', stderr: '' })
@@ -66,7 +66,7 @@ test('live candidates carry their pid', () =>
   assert.equal(collectLiveSessions(opts(fakePs('5176 ttys022 01:00 claude\n')))[0].pid, 5176))
 
 test('waiting status is kept, not mapped to unknown', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ct-wait-'))
+  const dir = mkdtempSync(join(tmpdir(), 'ctt-wait-'))
   writeFileSync(join(dir, '9.json'), JSON.stringify({ pid: 9, sessionId: 'W', cwd: '/x', status: 'waiting', entrypoint: 'cli' }))
   assert.equal(collectLiveSessions({ ...opts(fakePs('9 ttys001 01:00 claude\n')), sessionsDir: dir })[0].status, 'waiting')
 })

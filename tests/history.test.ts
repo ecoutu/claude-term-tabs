@@ -7,7 +7,7 @@ import { isExcluded, isResumableDir, listClosedSessions, resumeCommand } from '.
 import { DigestCache } from '../src/cache.ts'
 import { fixture } from './helpers.ts'
 
-const cache = () => DigestCache.load(join(mkdtempSync(join(tmpdir(), 'ct-hist-')), 'c.json'), () => {})
+const cache = () => DigestCache.load(join(mkdtempSync(join(tmpdir(), 'ctt-hist-')), 'c.json'), () => {})
 
 test('lists transcripts except live ones', () => {
   const c = listClosedSessions({ projectsDir: fixture('projects'), liveIds: new Set(['S1']), excludeDirs: [], cache: cache(), dirExists: () => true })

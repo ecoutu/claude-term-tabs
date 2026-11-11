@@ -77,21 +77,21 @@ export function askHaiku (query: string, cands: Candidate[], exec: Exec, warn: (
   const { args, input } = buildHaikuArgs(query, sent)
   const r = exec('claude', args, input, { timeoutMs: HAIKU_TIMEOUT_MS })
   if (r.status === 124) {
-    warn(`claude-tabs: Haiku call timed out after ${HAIKU_TIMEOUT_MS / 1000} s; using local ranking`)
+    warn(`claude-term-tabs: Haiku call timed out after ${HAIKU_TIMEOUT_MS / 1000} s; using local ranking`)
     return undefined
   }
   if (r.status === 127) {
-    warn('claude-tabs: claude not found, using local ranking')
+    warn('claude-term-tabs: claude not found, using local ranking')
     return undefined
   }
   if (r.status !== 0) {
-    warn(`claude-tabs: Haiku call failed (${r.status}): ${(r.stderr || r.stdout).trim().slice(0, 200)}; using local ranking`)
+    warn(`claude-term-tabs: Haiku call failed (${r.status}): ${(r.stderr || r.stdout).trim().slice(0, 200)}; using local ranking`)
     return undefined
   }
   try {
     return parseHaikuRanking(r.stdout, new Set(sent.map(c => c.digest.sessionId)))
   } catch (err) {
-    warn(`claude-tabs: ${(err as Error).message}; using local ranking`)
+    warn(`claude-term-tabs: ${(err as Error).message}; using local ranking`)
     return undefined
   }
 }

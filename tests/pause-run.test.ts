@@ -13,7 +13,7 @@ const START = Date.parse('2026-11-10T20:00:00Z')
 interface Sim { id: string, status: Status, alive: boolean, pane: boolean, front?: 'claude' | 'shell' | 'other' }
 
 function world (sims: Sim[], autoCloseOpts: { autoClose: boolean } = { autoClose: false }) {
-  const root = mkdtempSync(join(tmpdir(), 'ct-pause-'))
+  const root = mkdtempSync(join(tmpdir(), 'ctt-pause-'))
   const log: string[] = []
   let clock = START
   const state = new Map(sims.map(s => [s.id, { ...s }]))

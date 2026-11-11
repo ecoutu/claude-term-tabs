@@ -25,7 +25,7 @@ export class DigestCache {
     try {
       raw = readFileSync(file, 'utf8')
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') warn(`claude-tabs: cache unreadable (${(err as Error).message}), rebuilding`)
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') warn(`claude-term-tabs: cache unreadable (${(err as Error).message}), rebuilding`)
       return new DigestCache(file, new Map())
     }
     try {
@@ -35,7 +35,7 @@ export class DigestCache {
       }
       return new DigestCache(file, new Map(Object.entries(parsed.entries)))
     } catch {
-      warn(`claude-tabs: cache at ${file} is corrupt, rebuilding`)
+      warn(`claude-term-tabs: cache at ${file} is corrupt, rebuilding`)
       return new DigestCache(file, new Map())
     }
   }

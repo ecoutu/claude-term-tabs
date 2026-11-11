@@ -4,7 +4,7 @@ import type { Snapshot, SnapshotSession } from './snapshot.ts'
 import type { TerminalAdapter } from './terminals/adapter.ts'
 import { shellQuote } from './shell.ts'
 
-/** What `ct resume` will do with one recorded session. */
+/** What `ctt resume` will do with one recorded session. */
 export interface ResumeStep {
   session: SnapshotSession
   action: 'open' | 'skip-live' | 'skip-dir-gone'

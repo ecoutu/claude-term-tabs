@@ -1,6 +1,6 @@
 name: Project board
 
-# Adds new issues and pull requests to the claude-tabs project board and sets their Status: issues start in Backlog,
+# Adds new issues and pull requests to the claude-term-tabs project board and sets their Status: issues start in Backlog,
 # draft PRs in In progress, ready PRs in In review, and closed or merged items move to Done (the board's own
 # "Item closed" / "Pull request merged" workflows are off).
 # A PR without a milestone takes the milestone of the first issue it closes ("Closes #n").

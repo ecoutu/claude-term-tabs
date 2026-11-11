@@ -1,12 +1,12 @@
-# Contributing to claude-tabs
+# Contributing to claude-term-tabs
 
 Bug reports, ideas and pull requests are welcome. Use the issue forms
-([bug report](https://github.com/ecoutu/claude-tabs/issues/new?template=bug_report.yml),
-[idea](https://github.com/ecoutu/claude-tabs/issues/new?template=idea.yml)).
+([bug report](https://github.com/ecoutu/claude-term-tabs/issues/new?template=bug_report.yml),
+[idea](https://github.com/ecoutu/claude-term-tabs/issues/new?template=idea.yml)).
 
 ## Set up
 
-Requires Node.js 24. `ct` itself has no runtime dependencies; `npm ci` installs the commit hooks (husky and
+Requires Node.js 24. `ctt` itself has no runtime dependencies; `npm ci` installs the commit hooks (husky and
 commitlint).
 
 ```sh
@@ -18,8 +18,8 @@ npm test
 ## Before you open a pull request
 
 Run `npm run check` (type-check) and `npm test`, the checks CI runs (the `pre-push` hook runs them too). Add or update
-tests with the change; they use `node --test` (`tests/`), with `CT_NO_REAL_EXEC=1` so no test drives a real terminal.
-If you changed how ct talks to a terminal, also run the README's [manual checks](README.md#manual-checks) in that
+tests with the change; they use `node --test` (`tests/`), with `CTT_NO_REAL_EXEC=1` so no test drives a real terminal.
+If you changed how ctt talks to a terminal, also run the README's [manual checks](README.md#manual-checks) in that
 terminal.
 
 Never commit a real transcript, prompt or token into `tests/fixtures/`. CI scans every branch with gitleaks

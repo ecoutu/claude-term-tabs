@@ -1,12 +1,12 @@
 name: Idea
-description: Something ct could find, switch to, pause or resume for you.
+description: Something ctt could find, switch to, pause or resume for you.
 labels: [idea]
 body:
   - type: textarea
     id: what
     attributes:
       label: What you want to do
-      description: The situation, and what ct should do in it.
+      description: The situation, and what ctt should do in it.
     validations:
       required: true
   - type: textarea

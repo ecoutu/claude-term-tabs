@@ -2,15 +2,15 @@ import { readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
-/** Prompt typed into every session by `ct pause`. */
+/** Prompt typed into every session by `ctt pause`. */
 export const DEFAULT_STOP_PROMPT = "Pausing for a machine restart. Stop at the nearest safe point: start nothing new, and do not push, merge, apply, post or transition anything that was not already mid-flight. Leave no file half-edited; do not commit unless that was already the plan. Background jobs, Monitors, /loop wakeups and subagents will die with the restart.\n\nThen reply with a message headed HANDOFF (under 20 lines):\n- Goal: what this session is for (ticket/PR refs)\n- Done: what is finished, with PR numbers, commits, ticket states\n- In flight: branch, worktree path, uncommitted changes, anything half-done\n- Lost on restart: background watches/monitors/loops/agents and how to restart them\n- Next step: the exact next action\n- Open questions: anything you need from me\n\nThen stop and wait.\n"
 
-/** Prompt passed to every session reopened by `ct resume`. */
+/** Prompt passed to every session reopened by `ctt resume`. */
 export const DEFAULT_RESUME_PROMPT = "Resumed after a machine restart. Find your most recent HANDOFF message above and pick up from its \"Next step\". Before acting, re-check live state, since anything may have moved while we were down: git branch and status (and worktree path if any), PR and CI status, and Jira status for any ticket involved. Restart any background watches, monitors or loops the handoff lists. Then give me a 3-line status and continue. If there is no HANDOFF message, summarize where we left off and ask before doing anything.\n"
 
 const DEFAULT_PAUSE_TIMEOUT_MINUTES = 10
 
-/** User config from ~/.config/claude-tabs/config.json, with defaults applied. */
+/** User config from ~/.config/claude-term-tabs/config.json, with defaults applied. */
 export interface Config {
   resumeCommand?: string
   stopPrompt: string

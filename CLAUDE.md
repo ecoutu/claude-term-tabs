@@ -1,4 +1,4 @@
-# claude-tabs: instructions for Claude
+# claude-term-tabs: instructions for Claude
 
 ## Commits: Conventional Commits only
 - Every commit message follows [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<optional scope>): <summary>`.

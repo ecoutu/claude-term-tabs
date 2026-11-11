@@ -3,9 +3,9 @@ import type { Exec } from './types.ts'
 
 const MAX_BUFFER = 64 * 1024 * 1024
 
-/** Real Exec backed by spawnSync. Spawn failure returns status 127, a timeout 124, CT_NO_REAL_EXEC=1 blocks with 126. */
+/** Real Exec backed by spawnSync. Spawn failure returns status 127, a timeout 124, CTT_NO_REAL_EXEC=1 blocks with 126. */
 export const realExec: Exec = (cmd, args, input, opts) => {
-  if (process.env.CT_NO_REAL_EXEC === '1') return { status: 126, stdout: '', stderr: `${cmd}: blocked by CT_NO_REAL_EXEC` }
+  if (process.env.CTT_NO_REAL_EXEC === '1') return { status: 126, stdout: '', stderr: `${cmd}: blocked by CTT_NO_REAL_EXEC` }
   const r = spawnSync(cmd, args, { encoding: 'utf8', input, maxBuffer: MAX_BUFFER, timeout: opts?.timeoutMs })
   if ((r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT') return { status: 124, stdout: '', stderr: `${cmd}: timed out` }
   if (r.error) return { status: 127, stdout: '', stderr: `${cmd}: ${r.error.message}` }

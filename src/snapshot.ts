@@ -7,7 +7,7 @@ import type { Candidate } from './types.ts'
 const SUFFIX = '.json'
 const NAME = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z\.json$/
 
-/** One session recorded by `ct pause`. */
+/** One session recorded by `ctt pause`. */
 export interface SnapshotSession {
   sessionId: string
   cwd: string
@@ -20,7 +20,7 @@ export interface SnapshotSession {
   handoffWritten: boolean
 }
 
-/** Every session open when `ct pause` started. */
+/** Every session open when `ctt pause` started. */
 export interface Snapshot { id: string, createdAt: string, sessions: SnapshotSession[] }
 
 /** Build a snapshot of live candidates; its id is the creation time with ':' as '-'. */

@@ -14,30 +14,30 @@ export function flagLines (flags: Flags, opts: { help?: boolean } = {}): string 
   return rows.map(([label, describe]) => `  ${label.padEnd(column)}${describe}`).join('\n')
 }
 
-/** `ct pause [--auto-close] [--timeout MIN]`, from a subcommand's table; -h/--help left out. */
+/** `ctt pause [--auto-close] [--timeout MIN]`, from a subcommand's table; -h/--help left out. */
 function usage (name: keyof typeof COMMANDS): string {
   const c: { flags: Flags, args?: string } = COMMANDS[name]
   const flags = Object.entries(c.flags).filter(([flag]) => flag !== 'help').map(([flag, f]) => `[--${flag}${f.value !== undefined ? ` ${f.value}` : ''}]`)
-  return ['ct', name, ...flags, ...(c.args !== undefined ? [c.args] : [])].join(' ')
+  return ['ctt', name, ...flags, ...(c.args !== undefined ? [c.args] : [])].join(' ')
 }
 
-/** Usage text for ct and its subcommands. */
-export const HELP = `usage: ct [query...] [options]
+/** Usage text for ctt and its subcommands. */
+export const HELP = `usage: ctt [query...] [options]
 ${Object.keys(COMMANDS).map(name => `       ${usage(name as keyof typeof COMMANDS)}`).join('\n')}
 
 Find a Claude Code session by what you remember and switch to its tab.
 
 ${flagLines(SEARCH_FLAGS)}
 
-ct pause: ${COMMANDS.pause.describe}.
+ctt pause: ${COMMANDS.pause.describe}.
 ${flagLines(COMMANDS.pause.flags, { help: false })}
 
-ct resume: ${COMMANDS.resume.describe}.
+ctt resume: ${COMMANDS.resume.describe}.
 ${flagLines(COMMANDS.resume.flags, { help: false })}
 
-ct completion: ${COMMANDS.completion.describe}.
-  ct completion zsh >> ~/.zshrc, or ct completion bash >> ~/.bashrc (bash 4 or later)
+ctt completion: ${COMMANDS.completion.describe}.
+  ctt completion zsh >> ~/.zshrc, or ctt completion bash >> ~/.bashrc (bash 4 or later)
 
-Use ct -- pause to search for the word "pause".
+Use ctt -- pause to search for the word "pause".
 
-Config: ~/.config/claude-tabs/config.json  {"resumeCommand": "claude --resume {id}", "excludeDirs": ["~/scratch"]}`
+Config: ~/.config/claude-term-tabs/config.json  {"resumeCommand": "claude --resume {id}", "excludeDirs": ["~/scratch"]}`

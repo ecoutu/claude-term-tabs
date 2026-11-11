@@ -14,7 +14,7 @@ import { shellQuote } from '../shell.ts'
 export const POLL_MS = 3000
 const CLEAR = '\x1b[2J\x1b[H'
 const SAFE_PATH = /^[A-Za-z0-9._\/-]+$/
-const HEADER = 'ct pause: Enter or double-click jumps to a session · ctrl-r re-sends the stop prompt · Esc stops waiting'
+const HEADER = 'ctt pause: Enter or double-click jumps to a session · ctrl-r re-sends the stop prompt · Esc stops waiting'
 
 /** Interactive surroundings of the straggler list. */
 export interface UiIo {
@@ -33,21 +33,21 @@ interface Ui {
   closed: () => boolean
 }
 
-/** fzf arguments for the live straggler list; `self` is the argv prefix that re-invokes ct. */
+/** fzf arguments for the live straggler list; `self` is the argv prefix that re-invokes ctt. */
 export function fzfArgs (port: number, self: string[]): string[] {
-  const ct = self.map(shellQuote).join(' ')
+  const ctt = self.map(shellQuote).join(' ')
   return [
     '--listen', `127.0.0.1:${port}`,
     '--delimiter', '\t', '--with-nth', '2..',
     '--no-sort', '--layout', 'reverse', '--height', '50%',
     '--prompt', 'waiting> ', '--header', HEADER,
-    '--bind', `enter:execute-silent(${ct} _focus {1})`,
-    '--bind', `double-click:execute-silent(${ct} _focus {1})`,
-    '--bind', `ctrl-r:execute-silent(${ct} _send-stop {1})`
+    '--bind', `enter:execute-silent(${ctt} _focus {1})`,
+    '--bind', `double-click:execute-silent(${ctt} _focus {1})`,
+    '--bind', `ctrl-r:execute-silent(${ctt} _send-stop {1})`
   ]
 }
 
-/** The fzf reload action: it names only a ct-chosen file, so no session data reaches fzf's action parser. */
+/** The fzf reload action: it names only a ctt-chosen file, so no session data reaches fzf's action parser. */
 export function reloadAction (linesFile: string): string {
   if (!SAFE_PATH.test(linesFile)) throw new Error(`unsafe list file path: ${linesFile}`)
   return `reload(cat ${shellQuote(linesFile)})`
@@ -65,7 +65,7 @@ export function fzfEnv (base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 export async function runStragglerUi (run: PauseRun, deps: PauseDeps, io: UiIo, advance: (r: PauseRun, d: PauseDeps) => PauseRun = tickPause): Promise<PauseRun> {
   const deadline = deps.now() + io.timeoutMs
   let current = run
-  const ui = io.hasFzf && io.isTty && process.env.CT_NO_REAL_EXEC !== '1' ? await fzfUi(io, stragglerLines(current, deps.now())) : plainUi(io, deps)
+  const ui = io.hasFzf && io.isTty && process.env.CTT_NO_REAL_EXEC !== '1' ? await fzfUi(io, stragglerLines(current, deps.now())) : plainUi(io, deps)
   try {
     await ui.update(stragglerLines(current, deps.now()))
     while (!ui.closed()) {
@@ -74,7 +74,7 @@ export async function runStragglerUi (run: PauseRun, deps: PauseDeps, io: UiIo, 
       try {
         current = advance(current, deps)
       } catch (err) {
-        deps.warn(`claude-tabs: refresh failed, retrying: ${(err as Error).message}`)
+        deps.warn(`claude-term-tabs: refresh failed, retrying: ${(err as Error).message}`)
         continue
       }
       const pending = current.tracked.some(t => !FINAL_STATES.has(t.state))
@@ -113,7 +113,7 @@ function plainUi (io: UiIo, deps: PauseDeps): Ui {
 
 async function fzfUi (io: UiIo, initial: string[]): Promise<Ui> {
   const port = await freePort()
-  const dir = mkdtempSync(join(tmpdir(), 'claude-tabs-'))
+  const dir = mkdtempSync(join(tmpdir(), 'claude-term-tabs-'))
   const linesFile = join(dir, 'lines')
   writeOwnerOnly(linesFile, initial.join('\n'))
   const env = fzfEnv(process.env)
@@ -126,9 +126,9 @@ async function fzfUi (io: UiIo, initial: string[]): Promise<Ui> {
     if (exited) return
     try {
       const res = await fetch(`http://127.0.0.1:${port}`, { method: 'POST', headers: { 'x-api-key': env.FZF_API_KEY ?? '' }, body: action })
-      if (!res.ok) process.stderr.write(`claude-tabs: the list refused an update (${res.status})\n`)
+      if (!res.ok) process.stderr.write(`claude-term-tabs: the list refused an update (${res.status})\n`)
     } catch (err) {
-      if (!exited) process.stderr.write(`claude-tabs: could not update the list: ${(err as Error).message}\n`)
+      if (!exited) process.stderr.write(`claude-term-tabs: could not update the list: ${(err as Error).message}\n`)
     }
   }
   return {

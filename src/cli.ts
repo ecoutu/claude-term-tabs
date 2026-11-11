@@ -53,7 +53,7 @@ export interface Deps {
   isAlive: (pid: number) => boolean
   sleep: (ms: number) => Promise<void>
   self: string[]
-  /** The user's login shell ($SHELL), which `ct completion` writes a script for by default. */
+  /** The user's login shell ($SHELL), which `ctt completion` writes a script for by default. */
   shell: string | undefined
 }
 
@@ -93,7 +93,7 @@ export function run (opts: Options, deps: Deps): number {
     const ctx: Context = { opts, deps, adapter, config, multiWindow: new Set(panes.map(p => p.windowIndex)).size > 1 }
     return search(ctx, pool)
   } catch (err) {
-    deps.stderr(`claude-tabs: ${(err as Error).message}`)
+    deps.stderr(`claude-term-tabs: ${(err as Error).message}`)
     return EXIT_ERROR
   }
 }
@@ -142,7 +142,7 @@ function act (ctx: Context, c: Candidate, summary?: string): number {
   if (!c.live) return resume(ctx, c)
   if (adapter === undefined || c.pane === undefined) {
     deps.stdout(`${describe(c, summary, deps.now())}`)
-    deps.stderr('claude-tabs: no supported terminal pane for this session, so not switching')
+    deps.stderr('claude-term-tabs: no supported terminal pane for this session, so not switching')
     return EXIT_OK
   }
   adapter.focus(c.pane)
@@ -219,7 +219,7 @@ function gatherCandidates (opts: Options, deps: Deps, panes: Pane[], config: Con
   try {
     cache.save()
   } catch (err) {
-    deps.stderr(`claude-tabs: could not save cache: ${(err as Error).message}`)
+    deps.stderr(`claude-term-tabs: could not save cache: ${(err as Error).message}`)
   }
   return [...live, ...closed]
 }
@@ -235,7 +235,7 @@ function dedupe (cands: Candidate[]): Candidate[] {
 }
 
 const realExecTty: Exec = (cmd, args, input) => {
-  if (process.env.CT_NO_REAL_EXEC === '1') return { status: 126, stdout: '', stderr: `${cmd}: blocked by CT_NO_REAL_EXEC` }
+  if (process.env.CTT_NO_REAL_EXEC === '1') return { status: 126, stdout: '', stderr: `${cmd}: blocked by CTT_NO_REAL_EXEC` }
   const r = spawnSync(cmd, args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'inherit'] })
   if (r.error) return { status: 127, stdout: '', stderr: `${cmd}: ${r.error.message}` }
   return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: '' }
@@ -291,7 +291,7 @@ export function realDeps (exec: Exec = realExec): Deps {
   return deps
 }
 
-/** Entry point used by bin/claude-tabs. */
+/** Entry point used by bin/claude-term-tabs. */
 export async function main (argv: string[]): Promise<number> {
   const deps = realDeps()
   const sub = await runCommand(argv, deps)
@@ -300,7 +300,7 @@ export async function main (argv: string[]): Promise<number> {
   try {
     opts = parseArgs(argv)
   } catch (err) {
-    process.stderr.write(`claude-tabs: ${(err as Error).message}\n${HELP}\n`)
+    process.stderr.write(`claude-term-tabs: ${(err as Error).message}\n${HELP}\n`)
     return EXIT_ERROR
   }
   return run(opts, deps)

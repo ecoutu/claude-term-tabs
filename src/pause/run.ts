@@ -91,26 +91,26 @@ export function tickPause (run: PauseRun, deps: PauseDeps): PauseRun {
 export function sendStop (cand: Candidate, adapter: TerminalAdapter | undefined, prompt: string, warn: (m: string) => void, inFront: (c: Candidate) => Front): boolean {
   const name = cand.digest.title ?? cand.digest.sessionId
   if (cand.status === 'shell') {
-    warn(`claude-tabs: ${name} is in shell mode; not typing into it`)
+    warn(`claude-term-tabs: ${name} is in shell mode; not typing into it`)
     return false
   }
   if (!TYPEABLE.has(cand.status)) {
-    warn(`claude-tabs: ${name} is ${cand.status === 'waiting' ? 'waiting on a prompt' : `in status ${cand.status}`}; not typing into it`)
+    warn(`claude-term-tabs: ${name} is ${cand.status === 'waiting' ? 'waiting on a prompt' : `in status ${cand.status}`}; not typing into it`)
     return false
   }
   if (adapter === undefined || cand.pane === undefined) {
-    warn(`claude-tabs: ${name} is not in a supported terminal pane`)
+    warn(`claude-term-tabs: ${name} is not in a supported terminal pane`)
     return false
   }
   if (inFront(cand) !== 'claude') {
-    warn(`claude-tabs: Claude is not in front of the tab for ${name}; not typing into it`)
+    warn(`claude-term-tabs: Claude is not in front of the tab for ${name}; not typing into it`)
     return false
   }
   try {
     adapter.sendText(cand.pane, prompt)
     return true
   } catch (err) {
-    warn(`claude-tabs: could not type into ${name}: ${(err as Error).message}`)
+    warn(`claude-term-tabs: could not type into ${name}: ${(err as Error).message}`)
     return false
   }
 }
@@ -157,7 +157,7 @@ function step (t: Tracked, cur: Candidate | undefined, run: PauseRun, deps: Paus
     deps.adapter?.sendText(cand.pane as NonNullable<Candidate['pane']>, EXIT_COMMAND)
     return { ...next, state: 'closing', since: now, closeRequestedAt: now }
   } catch (err) {
-    deps.warn(`claude-tabs: could not exit ${cand.digest.title ?? cand.digest.sessionId}: ${(err as Error).message}`)
+    deps.warn(`claude-term-tabs: could not exit ${cand.digest.title ?? cand.digest.sessionId}: ${(err as Error).message}`)
     return next
   }
 }
@@ -166,13 +166,13 @@ function stepClosing (t: Tracked, deps: PauseDeps, now: number): Tracked {
   const pid = t.cand.pid
   if (pid !== undefined && !deps.isAlive(pid)) {
     if (deps.inFront(t.cand) !== 'shell') {
-      deps.warn(`claude-tabs: ${t.cand.digest.title ?? t.cand.digest.sessionId} exited, but something other than its shell is in front; leaving the tab open`)
+      deps.warn(`claude-term-tabs: ${t.cand.digest.title ?? t.cand.digest.sessionId} exited, but something other than its shell is in front; leaving the tab open`)
       return { ...t, state: 'done', since: now }
     }
     try {
       if (t.cand.pane !== undefined) deps.adapter?.closePane(t.cand.pane)
     } catch (err) {
-      deps.warn(`claude-tabs: could not close the tab for ${t.cand.digest.title ?? t.cand.digest.sessionId}: ${(err as Error).message}`)
+      deps.warn(`claude-term-tabs: could not close the tab for ${t.cand.digest.title ?? t.cand.digest.sessionId}: ${(err as Error).message}`)
     }
     return { ...t, state: 'closed', since: now }
   }

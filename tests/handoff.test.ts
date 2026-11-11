@@ -31,7 +31,7 @@ test('only assistant text after the stop prompt message counts', async () => {
   const { join } = await import('node:path')
   const { tmpdir } = await import('node:os')
   const { latestAssistantAfterPrompt } = await import('../src/handoff.ts')
-  const f = join(mkdtempSync(join(tmpdir(), 'ct-ho-')), 't.jsonl')
+  const f = join(mkdtempSync(join(tmpdir(), 'ctt-ho-')), 't.jsonl')
   const L = (o: unknown) => JSON.stringify(o)
   const lines = [
     L({ type: 'assistant', timestamp: '2026-11-10T10:00:05Z', message: { content: [{ type: 'text', text: 'Docs:\nHANDOFF heading explained' }] } })

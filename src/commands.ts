@@ -33,7 +33,7 @@ export async function runCommand (argv: string[], deps: Deps): Promise<number | 
       default: return undefined
     }
   } catch (err) {
-    deps.stderr(`claude-tabs: ${(err as Error).message}`)
+    deps.stderr(`claude-term-tabs: ${(err as Error).message}`)
     return EXIT_USAGE
   }
 }
@@ -78,7 +78,7 @@ function resume (argv: string[], deps: Deps): number {
   const config = loadConfig(deps.dirs.config)
   const snap = values.snapshot !== undefined ? readSnapshot(values.snapshot) : latestSnapshot(deps.dirs.snapshots)
   if (snap === undefined) {
-    deps.stdout('No snapshot found. Run ct pause first.')
+    deps.stdout('No snapshot found. Run ctt pause first.')
     return EXIT_NONE
   }
   const adapter = deps.resolveAdapter()
@@ -98,16 +98,16 @@ function asksHelp (argv: string[]): boolean {
   return (end === -1 ? argv : argv.slice(0, end)).some(a => a === '-h' || a === '--help')
 }
 
-/** `ct completion [bash|zsh]` prints the script; without a shell, $SHELL decides when it is bash or zsh. */
+/** `ctt completion [bash|zsh]` prints the script; without a shell, $SHELL decides when it is bash or zsh. */
 function completion (argv: string[], deps: Deps): number {
   const { positionals } = parseFlags(argv, COMMANDS.completion.flags, { positionals: true })
   if (positionals.length > 1) throw new Error(`Unexpected argument '${positionals[1]}'`)
   const shell = positionals[0] ?? basename(deps.shell ?? '')
   if (!isShell(shell)) {
     const where = positionals[0] === undefined ? ' in $SHELL' : ''
-    throw new Error(`unknown shell "${shell}"${where} (supported: ${SHELLS.join(', ')}); run ${SHELLS.map(s => `ct completion ${s}`).join(' or ')}`)
+    throw new Error(`unknown shell "${shell}"${where} (supported: ${SHELLS.join(', ')}); run ${SHELLS.map(s => `ctt completion ${s}`).join(' or ')}`)
   }
-  deps.stdout(completionScript(shell, deps.self[1] ?? 'ct'))
+  deps.stdout(completionScript(shell, deps.self[1] ?? 'ctt'))
   return EXIT_OK
 }
 
@@ -116,7 +116,7 @@ function focus (argv: string[], deps: Deps): number {
   const adapter = deps.resolveAdapter()
   const c = liveWithPanes(deps, adapter).find(x => x.digest.sessionId === id)
   if (c?.pane === undefined || adapter === undefined) {
-    deps.stderr(`claude-tabs: no reachable pane for session ${id}`)
+    deps.stderr(`claude-term-tabs: no reachable pane for session ${id}`)
     return EXIT_NONE
   }
   adapter.focus(c.pane)
@@ -128,7 +128,7 @@ function sendStopCommand (argv: string[], deps: Deps): number {
   const adapter = deps.resolveAdapter()
   const c = liveWithPanes(deps, adapter).find(x => x.digest.sessionId === id)
   if (c === undefined) {
-    deps.stderr(`claude-tabs: session ${id} is not running`)
+    deps.stderr(`claude-term-tabs: session ${id} is not running`)
     return EXIT_NONE
   }
   return sendStop(c, adapter, loadConfig(deps.dirs.config).stopPrompt, deps.stderr, x => frontOf(deps, x)) ? EXIT_OK : EXIT_NONE

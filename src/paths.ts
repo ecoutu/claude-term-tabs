@@ -28,7 +28,7 @@ export function transcriptPath (projectsDir: string, cwd: string, sessionId: str
 export const defaultDirs = {
   sessions: join(homedir(), '.claude', 'sessions'),
   projects: join(homedir(), '.claude', 'projects'),
-  cache: join(homedir(), '.cache', 'claude-tabs', 'digests.json'),
-  config: join(homedir(), '.config', 'claude-tabs', 'config.json'),
-  snapshots: join(homedir(), '.local', 'state', 'claude-tabs', 'snapshots')
+  cache: join(homedir(), '.cache', 'claude-term-tabs', 'digests.json'),
+  config: join(homedir(), '.config', 'claude-term-tabs', 'config.json'),
+  snapshots: join(homedir(), '.local', 'state', 'claude-term-tabs', 'snapshots')
 }

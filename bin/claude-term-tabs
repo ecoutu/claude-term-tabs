@@ -8,7 +8,7 @@ const argv = process.argv.slice(2)
 const src = file => pathToFileURL(join(root, 'src', file)).href
 const { COMPLETE_FLAG, answerCompletion } = await import(src('complete.ts'))
 if (argv[0] === COMPLETE_FLAG) {
-  // A Tab press: answer without loading the rest of ct.
+  // A Tab press: answer without loading the rest of ctt.
   const { lineWriter } = await import(src('output.ts'))
   process.exitCode = answerCompletion(argv.slice(1), { stdout: lineWriter(1), stderr: lineWriter(2) })
 } else {

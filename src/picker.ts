@@ -52,7 +52,7 @@ export function pick (cands: Candidate[], summaries: Map<string, string>, exec: 
 }
 
 function runFzf (lines: string[], cands: Candidate[], exec: Exec): string | undefined {
-  const previewDir = mkdtempSync(join(tmpdir(), 'claude-tabs-'))
+  const previewDir = mkdtempSync(join(tmpdir(), 'claude-term-tabs-'))
   try {
     for (const c of cands) writeFileSync(join(previewDir, c.digest.sessionId), previewText(c.digest), { mode: 0o600 })
     const r = exec('fzf', [

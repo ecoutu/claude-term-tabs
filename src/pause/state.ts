@@ -1,6 +1,6 @@
 import type { Status } from '../types.ts'
 
-/** Where a session stands during `ct pause`. */
+/** Where a session stands during `ctt pause`. */
 export type PauseState =
   | 'done' | 'closing' | 'closed' | 'exit-failed'
   | 'busy' | 'may-need-you' | 'waiting-on-you' | 'idle-no-handoff' | 'in-shell-mode' | 'cant-reach' | 'exited'
