@@ -33,6 +33,14 @@
       "groupName": "dev tooling (minor/patch)"
     },
     {
+      "description": "Patch updates to dev tooling merge themselves once the required ci check passes (a group only when all of it is patch)",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
       "description": "GitHub Actions",
       "matchManagers": ["github-actions"],
       "groupName": "github actions"
