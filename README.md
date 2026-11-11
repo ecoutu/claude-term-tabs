@@ -79,7 +79,8 @@ ct resume --no-prompt   # reopen without sending the resume prompt
 ```
 
 Sessions already running are skipped, so running it twice is harmless. Snapshots live in
-`~/.local/state/claude-tabs/snapshots/` and are pruned after 30 days.
+`~/.local/state/claude-tabs/snapshots/` and are pruned after 30 days. `ct resume` uses the newest;
+`--snapshot FILE` picks another.
 
 ## Config
 
