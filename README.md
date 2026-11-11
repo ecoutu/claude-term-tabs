@@ -13,7 +13,7 @@ ctt working on pause in claude-term-tabs
 # → Pause sessions before a restart · claude-term-tabs · tab 4
 ```
 
-Works with iTerm2 and WezTerm on macOS.
+Works with iTerm2 on macOS, and WezTerm on macOS and Linux.
 
 ## Install
 
