@@ -40,3 +40,26 @@ test('prompts trimmed to 200 chars', () => {
   const d = extractDigest(fixture('transcript-long-prompt.jsonl'), { sessionId: 'S' })
   assert.equal(d.firstPrompt?.length, 200)
 })
+
+test('pasted-text tags are left out of the first and last prompt', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const f = join(mkdtempSync(join(tmpdir(), 'ctt-tr-')), 't.jsonl')
+  writeFileSync(f, [
+    { type: 'user', message: { content: 'Fix this:\n\n<pasted_content id="32e7">\nTypeError in checkout\n</pasted_content id="32e7">\n' } },
+    { type: 'last-prompt', lastPrompt: '<pasted_content id="9a1b">\nretry the sync job\n</pasted_content id="9a1b">' }
+  ].map(e => JSON.stringify(e)).join('\n') + '\n')
+  const d = extractDigest(f, { sessionId: 'S' })
+  assert.equal(d.firstPrompt, 'Fix this: TypeError in checkout')
+  assert.equal(d.lastPrompt, 'retry the sync job')
+})
+
+test('a prompt that is only an empty paste counts as no prompt', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const f = join(mkdtempSync(join(tmpdir(), 'ctt-tr-')), 't.jsonl')
+  writeFileSync(f, JSON.stringify({ type: 'last-prompt', lastPrompt: '<pasted_content id="1"> \n </pasted_content id="1">' }) + '\n')
+  assert.equal(extractDigest(f, { sessionId: 'S' }).lastPrompt, undefined)
+})

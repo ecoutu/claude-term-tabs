@@ -139,7 +139,8 @@ function userText (message: unknown): string | undefined {
 
 function trimPrompt (text: string | undefined): string | undefined {
   if (text === undefined) return undefined
-  return text.replace(/\s+/g, ' ').trim().slice(0, PROMPT_CHARS)
+  const prompt = withoutPasteTags(text).replace(/\s+/g, ' ').trim().slice(0, PROMPT_CHARS)
+  return prompt === '' ? undefined : prompt
 }
 
 /** A prompt as it was typed, without the tags Claude Code puts around pasted text. */
