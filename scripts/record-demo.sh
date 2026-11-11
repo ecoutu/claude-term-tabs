@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Records docs/demo.gif: `ctt <words>` switching tabs, then `ctt pause` until "Safe to restart."
+# Records docs/demo.gif: `ctt <words>` switching tabs, `ctt pause --auto-close` until "Safe to restart."
+# with every session's tab closed, then `ctt resume --no-prompt` bringing them all back in a new window,
+# the one in front showing its HANDOFF.
 #
 # Runs everything in a scratch HOME, on a hidden X display (Xvfb) with its own WezTerm, so it never
 # touches your screen, your terminal or your real Claude Code sessions. The scratch sessions run Haiku,
@@ -80,7 +82,8 @@ log () { printf 'record-demo: %s\n' "$*" >&2; }
 
 mkdir -p "$home/.claude" "$home/.config/wezterm" "$home/bin" "$base/run"
 chmod 700 "$base/run"
-echo '{ "theme": "dark" }' > "$home/.claude/settings.json"
+# Remote Control needs a full login; with a setup-token it only shows a "login expired" notice.
+echo '{ "theme": "dark", "remoteControlAtStartup": false }' > "$home/.claude/settings.json"
 
 cat > "$home/.config/wezterm/wezterm.lua" <<'EOF'
 local wezterm = require 'wezterm'
@@ -171,7 +174,12 @@ for id in "${real_ids[@]}"; do
   node -e '
     const fs = require("fs")
     const [src, dest, from, to] = process.argv.slice(1)
-    fs.writeFileSync(dest, fs.readFileSync(src, "utf8").split(JSON.stringify(from)).join(JSON.stringify(to)), { mode: 0o600 })
+    // Drop the Remote Control link, or the resumed copy tries to reconnect it and shows "login expired".
+    const lines = fs.readFileSync(src, "utf8").split(JSON.stringify(from)).join(JSON.stringify(to)).split("\n").map(l => {
+      if (!l.includes("bridgeSessionId")) return l
+      try { const e = JSON.parse(l); delete e.bridgeSessionId; return JSON.stringify(e) } catch { return l }
+    })
+    fs.writeFileSync(dest, lines.join("\n"), { mode: 0o600 })
   ' "$src" "$dest/$sid.jsonl" "$cwd" "$dir"
   add_trust "$dir"
   resumed+=("$dir|$sid")
@@ -245,6 +253,10 @@ crop=$(ffmpeg -i "$base/probe.png" -vf cropdetect=limit=8:round=2:skip=0 -f null
 # --- sessions -------------------------------------------------------------------------------------
 
 no_tools=Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Agent,Task
+# `ctt resume` reopens the sessions with the same limits.
+mkdir -p "$home/.config/claude-term-tabs"
+printf '{ "resumeCommand": "claude --model haiku --permission-mode default --disallowedTools %s --resume {id}" }\n' "$no_tools" \
+  > "$home/.config/claude-term-tabs/config.json"
 total=$((${#sessions[@]} + ${#resumed[@]}))
 log "starting $total Claude Code sessions"
 for r in "${resumed[@]}"; do
@@ -324,34 +336,65 @@ sleep 2.5          # the matching tab is in front now
 mark switched
 w activate-pane --pane-id "$shell_pane"
 sleep 0.6
-type_in "ctt pause"
+type_in "ctt pause --auto-close"
 mark pause
 for _ in $(seq 180); do
   [[ $(pane_text) == *'Safe to restart'* ]] && break
   sleep 1
 done
 mark safe
-sleep 2.5
-kill -INT "$rec"; wait "$rec" || true
-
 [[ $(pane_text) == *'Safe to restart'* ]] || { log "pause did not finish; rerun with --keep to look"; exit 1; }
+sleep 1.5
+type_in "ctt resume --no-prompt"
+for _ in $(seq 60); do
+  [[ $(pane_text) == *'Resumed '* ]] && break
+  sleep 0.5
+done
+mark resumed
+[[ $(pane_text) == *"Resumed $total of $total sessions"* ]] || { log "resume did not reopen every session; rerun with --keep to look"; exit 1; }
+# Wait until every reopened session shows its title in the tab bar and the one in front (the last one
+# opened) has drawn its conversation down to the HANDOFF.
+drawn () {
+  w list --format json | node -e '
+    const panes = JSON.parse(require("fs").readFileSync(0, "utf8")).filter(p => p.pane_id !== Number(process.argv[1]))
+    const titled = panes.filter(p => !/^(zsh|bash|sh|node|claude)$/.test(p.title.trim())).length
+    console.log(titled >= Number(process.argv[2]) ? panes.at(-1).pane_id : "")
+  ' "$shell_pane" "$total"
+}
+for _ in $(seq 120); do
+  front=$(drawn)
+  [[ -n $front && $(w get-text --pane-id "$front") == *HANDOFF* ]] && break
+  sleep 0.5
+done
+[[ -n $front ]] || { log "the reopened sessions did not draw; rerun with --keep to look"; exit 1; }
+mark drawn
+sleep 3
+mark end
+kill -INT "$rec"; wait "$rec" || true
 
 # --- GIF ------------------------------------------------------------------------------------------
 
-# Real time up to `ctt pause` plus 1.5 s; the wait in between sped up to 2.5 s; the last 2.5 s real time.
-read -r _ t_pause < <(grep '^pause ' "$base/marks")
-read -r _ t_safe < <(grep '^safe ' "$base/marks")
-a_end=$(echo "a = $t_pause + 1.5; if (a > $t_safe) a = $t_safe; a" | bc)
-b_end=$(echo "$t_safe + 0.3" | bc)
-b_len=$(echo "$b_end - $a_end" | bc)
-speed=$(echo "s = $b_len / 2.5; if (s < 1) s = 1; s" | bc -l)
-log "pause wait ${b_len}s, shown $(printf %.1f "$speed") times faster"
+# Frames that are all black (the new window being created) are dropped.
+# Real time except two waits: the HANDOFFs (after `ctt pause`) and the reopened sessions starting up
+# (after `ctt resume`), each sped up to fit in 2 seconds.
+t () { awk -v k="$1" '$1 == k { print $2 }' "$base/marks"; }
+t_pause=$(t pause) t_safe=$(t safe) t_resumed=$(t resumed) t_drawn=$(t drawn) t_end=$(t end)
+cut1=$(echo "a = $t_pause + 1.5; if (a > $t_safe) a = $t_safe; a" | bc)
+cut2=$(echo "$t_safe + 0.3" | bc)
+cut3=$(echo "$t_resumed + 0.3" | bc)
+cut4=$(echo "a = $t_drawn; if (a < $cut3) a = $cut3; a" | bc)
+speed () { echo "s = ($2 - $1) / 2; if (s < 1) s = 1; s" | bc -l; }
+s1=$(speed "$cut1" "$cut2") s2=$(speed "$cut3" "$cut4")
+log "pause wait shown $(printf %.1f "$s1")x, startup wait $(printf %.1f "$s2")x faster"
 
 ffmpeg -loglevel error -y -i "$base/demo.mp4" -filter_complex "
-  [0:v]trim=0:$a_end,setpts=PTS-STARTPTS[a];
-  [0:v]trim=$a_end:$b_end,setpts=(PTS-STARTPTS)/${speed}[b];
-  [0:v]trim=start=$b_end,setpts=PTS-STARTPTS[c];
-  [a][b][c]concat=n=3,$crop,fps=12,scale=1200:-1:flags=lanczos,split[x][y];
+  [0:v]trim=0:$cut1,setpts=PTS-STARTPTS[a];
+  [0:v]trim=$cut1:$cut2,setpts=(PTS-STARTPTS)/${s1}[b];
+  [0:v]trim=$cut2:$cut3,setpts=PTS-STARTPTS[c];
+  [0:v]trim=$cut3:$cut4,setpts=(PTS-STARTPTS)/${s2}[d];
+  [0:v]trim=$cut4:$t_end,setpts=PTS-STARTPTS[e];
+  [a][b][c][d][e]concat=n=5,$crop,
+  blackframe=amount=0,metadata=select:key=lavfi.blackframe.pblack:value=98:function=less,fps=12,scale=1200:-1:flags=lanczos,split[x][y];
   [x]palettegen=stats_mode=diff[p];[y][p]paletteuse=dither=bayer:bayer_scale=4" "$out"
 
 log "wrote $out ($(du -h "$out" | cut -f1), $(ffprobe -v error -show_entries format=duration -of csv=p=0 "$out")s)"
