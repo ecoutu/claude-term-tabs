@@ -6,6 +6,8 @@ const HEAD_BYTES = 64 * 1024
 const DEFAULT_TAIL_BYTES = 256 * 1024
 const PROMPT_CHARS = 200
 const WRAPPER_PREFIXES = ['<command', '<local-command', '<system', '<user-prompt-submit-hook', 'Caveat:']
+/** Claude Code records pasted text between `<pasted_content id="…">` and `</pasted_content id="…">` tags. */
+const PASTE_TAG = /<\/?pasted_content\b[^>]*>/g
 
 type Entry = Record<string, unknown>
 
@@ -138,6 +140,11 @@ function userText (message: unknown): string | undefined {
 function trimPrompt (text: string | undefined): string | undefined {
   if (text === undefined) return undefined
   return text.replace(/\s+/g, ' ').trim().slice(0, PROMPT_CHARS)
+}
+
+/** A prompt as it was typed, without the tags Claude Code puts around pasted text. */
+export function withoutPasteTags (text: string): string {
+  return text.replace(PASTE_TAG, '')
 }
 
 function str (v: unknown): string | undefined {

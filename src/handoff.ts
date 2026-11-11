@@ -1,4 +1,5 @@
 import { closeSync, fstatSync, openSync, readSync } from 'node:fs'
+import { withoutPasteTags } from './transcript.ts'
 
 const DEFAULT_TAIL_BYTES = 128 * 1024
 const HANDOFF_LINE = /^\s*(?:#+\s*|\*\*)?HANDOFF\b(?!S)/m
@@ -91,7 +92,7 @@ export function latestAssistantAfterPrompt (path: string, promptStart: string, s
       const start = Math.max(0, size - window)
       const lines = readRange(fd, start, size - start).split('\n')
       const entries = (start > 0 ? lines.slice(1) : lines).flatMap<Record<string, unknown>>(l => parse(l) ?? [])
-      const promptAt = findLastIndex(entries, e => e.type === 'user' && Date.parse(String(e.timestamp)) >= sinceMs && (textOf(e.message) ?? '').trimStart().startsWith(promptStart))
+      const promptAt = findLastIndex(entries, e => e.type === 'user' && Date.parse(String(e.timestamp)) >= sinceMs && withoutPasteTags(textOf(e.message) ?? '').trimStart().startsWith(promptStart))
       if (promptAt >= 0) {
         const replies = entries.slice(promptAt + 1).filter(e => e.type === 'assistant').map(e => textOf(e.message)).filter((t): t is string => t !== undefined)
         return replies.at(-1)
