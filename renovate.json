@@ -41,6 +41,11 @@
       "automergeStrategy": "squash"
     },
     {
+      "description": "Node's types follow the Node version CI and users run (24)",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "24.x"
+    },
+    {
       "description": "GitHub Actions",
       "matchManagers": ["github-actions"],
       "groupName": "github actions"

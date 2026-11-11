@@ -119,7 +119,8 @@ and modification time. Delete it any time.
 ## Development
 
 ```bash
-npm ci     # installs the commit hooks (husky + commitlint)
+npm ci          # installs the commit hooks (husky + commitlint)
+npm run check   # type-check
 npm test
 ```
 

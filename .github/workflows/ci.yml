@@ -20,5 +20,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - id: install
+        run: npm ci
+      - run: npm run check
+      # Run the tests even when the type-check fails, so one CI run reports both; not when the install failed.
       - run: npm test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}

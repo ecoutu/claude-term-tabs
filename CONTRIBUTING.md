@@ -11,14 +11,16 @@ commitlint).
 
 ```sh
 npm ci
+npm run check   # type-check
 npm test
 ```
 
 ## Before you open a pull request
 
-Run `npm test`, the check CI runs (the `pre-push` hook runs it too). Add or update tests with the change; they use
-`node --test` (`tests/`), with `CT_NO_REAL_EXEC=1` so no test drives a real terminal. If you changed how ct talks to
-a terminal, also run the README's [manual checks](README.md#manual-checks) in that terminal.
+Run `npm run check` (type-check) and `npm test`, the checks CI runs (the `pre-push` hook runs them too). Add or update
+tests with the change; they use `node --test` (`tests/`), with `CT_NO_REAL_EXEC=1` so no test drives a real terminal.
+If you changed how ct talks to a terminal, also run the README's [manual checks](README.md#manual-checks) in that
+terminal.
 
 Never commit a real transcript, prompt or token into `tests/fixtures/`. CI scans every branch with gitleaks
 (`.gitleaks.toml`).

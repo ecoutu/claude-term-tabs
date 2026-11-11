@@ -23,16 +23,17 @@ const tracked = (id: string, state: Tracked['state']): Tracked => ({
 function sim (states: Array<Array<Tracked['state']>>) {
   let clock = 0
   let tick = 0
-  const deps = {
+  const deps: PauseDeps = {
     now: () => clock,
     collect: () => [],
     isAlive: () => true,
     transcriptOf: () => '/nope',
     sizeOf: () => 0,
     snapshotDir: '/nope',
-    config: { stopPrompt: 's', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10 },
-    warn: () => {}
-  } satisfies PauseDeps
+    config: { stopPrompt: 's', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10, excludeDirs: [] },
+    warn: () => {},
+    inFront: () => 'claude'
+  }
   const run: PauseRun = { startedAt: 0, autoClose: false, snapshot: { id: 'x', createdAt: '', sessions: [] }, tracked: states[0].map((s, i) => tracked(`s${i}`, s)) }
   const advance = (r: PauseRun): PauseRun => {
     tick = Math.min(tick + 1, states.length - 1)

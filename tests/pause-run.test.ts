@@ -40,7 +40,7 @@ function world (sims: Sim[], autoCloseOpts: { autoClose: boolean } = { autoClose
     transcriptOf: c => transcript(c.digest.sessionId),
     sizeOf: p => statSync(p).size,
     snapshotDir: join(root, 'snapshots'),
-    config: { stopPrompt: 'STOP-PROMPT now', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10 },
+    config: { stopPrompt: 'STOP-PROMPT now', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10, excludeDirs: [] },
     warn: m => { log.push(`warn ${m}`) },
     onSnapshot: () => { log.push('snapshot') },
     inFront: c => { const s = state.get(c.digest.sessionId)!; return s.front ?? (s.alive ? 'claude' : 'shell') }
