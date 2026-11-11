@@ -1,0 +1,4 @@
+# gitleaks (the "secrets" workflow) with its default rules. Allowlist fake test values by exact value, never whole
+# files, so a real token added next to them is still caught.
+[extend]
+useDefault = true

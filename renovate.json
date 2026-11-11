@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":pinAllExceptPeerDependencies", ":semanticCommits"],
+  "schedule": ["before 6am on monday"],
+  "timezone": "America/Toronto",
+  "rangeStrategy": "pin",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "description": "Security fixes open right away, outside the weekly schedule",
+    "schedule": ["at any time"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "gitleaks in the Secrets workflow: the release tag and its tarball's sha256, updated together",
+      "managerFilePatterns": ["/^\\.github/workflows/secrets\\.yml$/"],
+      "matchStrings": ["GITLEAKS_VERSION: (?<currentValue>v\\S+)\\n\\s*GITLEAKS_SHA256: (?<currentDigest>[0-9a-f]{64})"],
+      "depNameTemplate": "gitleaks/gitleaks",
+      "datasourceTemplate": "github-release-attachments"
+    },
+    {
+      "customType": "regex",
+      "description": "semantic-release run with npx in the Release workflow",
+      "managerFilePatterns": ["/^\\.github/workflows/release\\.yml$/"],
+      "matchStrings": ["npx --yes semantic-release@(?<currentValue>\\S+)"],
+      "depNameTemplate": "semantic-release",
+      "datasourceTemplate": "npm"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Dev tooling (commit hooks), grouped",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dev tooling (minor/patch)"
+    },
+    {
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    }
+  ]
+}

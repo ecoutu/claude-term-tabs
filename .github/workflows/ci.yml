@@ -1,15 +1,16 @@
-name: ci
+name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  # No push trigger: on every push to main, Release runs this workflow as its `ci` job before releasing.
+  workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-  test:
+  # `ci` is the required status check in the protect-main ruleset; keep the job name.
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -18,24 +19,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm test
-
-  release:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-      - run: npx --yes semantic-release@25.0.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
