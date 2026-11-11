@@ -6,6 +6,8 @@
 
 Find a running Claude Code session by what you remember about it, and switch to its terminal tab.
 
+![ctt switching to a session by a few words, then ctt pause waiting until every session has written a HANDOFF](https://raw.githubusercontent.com/ecoutu/claude-term-tabs/main/docs/demo.gif)
+
 ```bash
 ctt working on pause in claude-term-tabs
 # → Pause sessions before a restart · claude-term-tabs · tab 4
@@ -148,6 +150,9 @@ npm run test:package   # packs, installs and runs the npm package
 
 No runtime dependencies. A clone runs the TypeScript directly; the npm package ships it built to JavaScript.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the commit and pull request rules.
+
+`scripts/record-demo.sh` re-records `docs/demo.gif`. It runs Claude Code sessions in a scratch HOME on a hidden
+display, so it needs Linux, Xvfb, ffmpeg and a token from `claude setup-token`; its header lists the rest.
 
 ### Releases
 
