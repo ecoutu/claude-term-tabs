@@ -114,14 +114,16 @@ and modification time. Delete it any time.
 ## Development
 
 ```bash
+npm ci     # installs the commit hooks (husky + commitlint)
 npm test
 ```
 
-No dependencies; Node runs the TypeScript directly.
+No runtime dependencies; Node runs the TypeScript directly. [CONTRIBUTING.md](CONTRIBUTING.md) has the commit and
+pull request rules.
 
 ### Releases
 
-Every push to `main` runs the tests, then semantic-release reads the conventional commit
+Every push to `main` runs CI, then semantic-release reads the conventional commit
 messages since the last tag and, when any warrant it, tags the next version (`fix:` patch,
 `feat:` minor, `BREAKING CHANGE:` major) and publishes a GitHub release with notes. Nothing is
 published to npm, and `package.json` keeps a placeholder version; the git tag is the version.
