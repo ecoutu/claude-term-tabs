@@ -1,5 +1,9 @@
 # claude-term-tabs
 
+[![npm](https://img.shields.io/npm/v/claude-term-tabs)](https://www.npmjs.com/package/claude-term-tabs)
+[![Release](https://github.com/ecoutu/claude-term-tabs/actions/workflows/release.yml/badge.svg)](https://github.com/ecoutu/claude-term-tabs/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/npm/l/claude-term-tabs)](LICENSE)
+
 Find a running Claude Code session by what you remember about it, and switch to its terminal tab.
 
 ```bash
