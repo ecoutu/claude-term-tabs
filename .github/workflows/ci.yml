@@ -26,3 +26,6 @@ jobs:
       # Run the tests even when the type-check fails, so one CI run reports both; not when the install failed.
       - run: npm test
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      # Packs, installs and runs the npm package; kept out of `npm test` because it takes seconds.
+      - run: npm run test:package
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}

@@ -16,7 +16,8 @@ npm test
 ```
 
 The package ships JavaScript built into `dist/` (`npm run build`, run for you by `npm pack` and `npm publish`); a
-checkout runs the TypeScript in `src/` directly.
+checkout runs the TypeScript in `src/` directly. `npm run test:package` packs, installs and runs the package; it is
+kept out of `npm test` because it takes seconds.
 
 Releases publish to npm with trusted publishing: `release.yml` trades a GitHub OIDC token for the publish, so no npm
 token is stored. npm sets up trusted publishing only for a package that already exists, so the very first publish was
@@ -26,8 +27,9 @@ recreated, do that again before merging anything that releases.
 
 ## Before you open a pull request
 
-Run `npm run check` (type-check) and `npm test`, the checks CI runs (the `pre-push` hook runs them too). Add or update
-tests with the change; they use `node --test` (`tests/`), with `CTT_NO_REAL_EXEC=1` so no test drives a real terminal.
+Run `npm run check` (type-check), `npm test` and `npm run test:package`, the checks CI runs (the `pre-push` hook runs
+them too). Add or update tests with the change; they use `node --test` (`tests/`), with `CTT_NO_REAL_EXEC=1` so no
+test drives a real terminal.
 If you changed how ctt talks to a terminal, also run the README's [manual checks](README.md#manual-checks) in that
 terminal.
 

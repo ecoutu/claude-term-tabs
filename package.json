@@ -38,7 +38,8 @@
     "check": "tsc",
     "prepare": "husky",
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test:package": "CTT_NO_REAL_EXEC=1 node --test 'tests/**/*.pack.ts'"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.4",

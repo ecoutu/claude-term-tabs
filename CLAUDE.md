@@ -47,4 +47,4 @@
 `MEMORY.md`, `NEXT.md`, `.superpowers/`, `HANDOFF*.md`, or a real transcript under `tests/fixtures/`. These are local only, and most are listed in `.git/info/exclude`.
 
 ## Before committing
-Run the scripts from `package.json`: `npm run check` (type-check) and `npm test`. Never guess other commands.
+Run the scripts from `package.json`: `npm run check` (type-check), `npm test` and `npm run test:package`. Never guess other commands.
