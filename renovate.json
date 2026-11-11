@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":pinAllExceptPeerDependencies", ":semanticCommits"],
+  "extends": ["config:recommended", ":pinAllExceptPeerDependencies", ":semanticCommits", "helpers:pinGitHubActionDigestsToSemver"],
   "schedule": ["before 6am on monday"],
   "timezone": "America/Toronto",
   "rangeStrategy": "pin",
@@ -8,8 +8,9 @@
   "semanticCommitScope": "deps",
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
-    "description": "Security fixes open right away, outside the weekly schedule",
-    "schedule": ["at any time"]
+    "description": "Security fixes open right away, outside the weekly schedule and the release-age wait, so a person always merges them",
+    "schedule": ["at any time"],
+    "automerge": false
   },
   "lockFileMaintenance": {
     "enabled": true,
@@ -49,6 +50,21 @@
       "description": "GitHub Actions",
       "matchManagers": ["github-actions"],
       "groupName": "github actions"
+    },
+    {
+      "description": "Actions are pinned to the commit of a release (vX.Y.Z), so updates follow releases, not moved tags. Minor and patch releases at least 3 days old merge themselves once the required checks pass; pins, digests and majors wait for review. Accepted risk: release.yml runs these actions with the release token",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "minimumReleaseAge": "3 days",
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "The first pin of a bare major tag (@v5 to a vX.Y.Z commit) looks like a minor or patch update; it sets the trusted baseline, so it waits for review. Keep this rule after the automerge rule",
+      "matchManagers": ["github-actions"],
+      "matchCurrentValue": "/^v\\d+$/",
+      "automerge": false
     }
   ]
 }
