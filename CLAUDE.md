@@ -23,7 +23,9 @@
 - Merging to `main` triggers semantic-release (config in `.releaserc*`). It reads the commits on `main` since the last tag, then commits the new notes to `CHANGELOG.md` (`chore(release): <version> [skip ci]`), tags the version, publishes the package to npm as `claude-term-tabs` (trusted publishing from `release.yml`, no token; `prepack` builds `dist/`) and publishes a GitHub release:
   - `feat` → minor
   - `fix` / `perf` → patch
+  - `docs(readme)` → patch, so README changes reach the npm page (the scope must be exactly `readme`)
   - `!` / `BREAKING CHANGE` → major
+  - `revert` (git's `Revert "…"` message) → patch
   - anything else → no release
 - semantic-release alone decides the version. `package.json` keeps a placeholder version (semantic-release sets it only in the published package); the tag is the version. Never create tags, or edit `CHANGELOG.md` or release notes by hand.
 - Pick commit types carefully, because they *are* the changelog. Don't label a user-visible fix `chore`, or a refactor `feat`.

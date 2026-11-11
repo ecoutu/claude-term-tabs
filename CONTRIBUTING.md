@@ -41,7 +41,9 @@ Never commit a real transcript, prompt or token into `tests/fixtures/`. CI scans
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/): `fix(pause): keep waiting on a
   session that is still busy`. A commit hook runs commitlint. Use `feat` for something users see that is new, `fix`
   for a user-visible fix, and `refactor`, `test`, `docs`, `build`, `ci` or `chore` for the rest. The types decide the
-  version and the release notes, so pick them with care.
+  version and the release notes, so pick them with care. `docs(readme)` (the scope exactly `readme`) releases a patch,
+  because npmjs.com shows the README of the last published version; its release notes list nothing, and other `docs`
+  commits release nothing.
 - The pull request title is a Conventional Commit too (the `pr-title` check enforces it): a squash merge uses it as the
   commit title.
 - History stays linear. Rebase on `main` (`git fetch && git rebase origin/main`); never merge `main` into your branch.
