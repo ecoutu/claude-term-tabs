@@ -125,8 +125,9 @@ pull request rules.
 
 Every push to `main` runs CI, then semantic-release reads the conventional commit
 messages since the last tag and, when any warrant it, tags the next version (`fix:` patch,
-`feat:` minor, `BREAKING CHANGE:` major) and publishes a GitHub release with notes. Nothing is
-published to npm, and `package.json` keeps a placeholder version; the git tag is the version.
+`feat:` minor, `BREAKING CHANGE:` major), adds the notes to [CHANGELOG.md](CHANGELOG.md) and
+publishes a GitHub release. Nothing is published to npm, and `package.json` keeps a placeholder
+version; the git tag is the version.
 
 ### Manual checks
 

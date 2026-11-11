@@ -23,14 +23,6 @@
       "matchStrings": ["GITLEAKS_VERSION: (?<currentValue>v\\S+)\\n\\s*GITLEAKS_SHA256: (?<currentDigest>[0-9a-f]{64})"],
       "depNameTemplate": "gitleaks/gitleaks",
       "datasourceTemplate": "github-release-attachments"
-    },
-    {
-      "customType": "regex",
-      "description": "semantic-release run with npx in the Release workflow",
-      "managerFilePatterns": ["/^\\.github/workflows/release\\.yml$/"],
-      "matchStrings": ["npx --yes semantic-release@(?<currentValue>\\S+)"],
-      "depNameTemplate": "semantic-release",
-      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [

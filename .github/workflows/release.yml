@@ -14,25 +14,35 @@ concurrency:
 
 jobs:
   ci:
+    # The release commit carries [skip ci]; guard here too so it can never re-trigger a release.
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     uses: ./.github/workflows/ci.yml
 
   release:
     needs: ci
     runs-on: ubuntu-latest
-    # semantic-release only tags and publishes a GitHub release; it commits nothing, so GITHUB_TOKEN is enough
-    # (protect-main guards the branch, not tags).
     permissions:
       contents: write
       issues: write
       pull-requests: write
     steps:
+      # main is protected by the `protect-main` ruleset, so the CHANGELOG.md commit needs a token that may bypass it:
+      # the owner's classic token PROJECT_TOKEN (the admin role bypasses protect-main with mode "always").
+      - name: Check the release token
+        env:
+          TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "::error::set the PROJECT_TOKEN secret"; exit 1; fi
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.PROJECT_TOKEN }}
+          persist-credentials: true
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - run: npx --yes semantic-release@25.0.9
+          cache: npm
+      - run: npm ci
+      - run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PROJECT_TOKEN }}
