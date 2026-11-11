@@ -27,7 +27,7 @@ body:
     id: version
     attributes:
       label: claude-term-tabs version
-      description: The release tag, or `git rev-parse --short HEAD` in your checkout.
+      description: "`npm ls --global claude-term-tabs` for an npm install, or `git rev-parse --short HEAD` in a clone."
     validations:
       required: true
   - type: dropdown
