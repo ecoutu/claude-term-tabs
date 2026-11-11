@@ -202,6 +202,13 @@ test('--json prints a JSON array and implies --list', () => {
   assert.deepEqual(w.focused, [])
 })
 
+test('--help lists the pause and resume subcommands and their flags', () => {
+  const w = world()
+  assert.equal(run(parseArgs(['--help']), w.deps), 0)
+  const help = w.out.join('\n')
+  for (const s of ['ct pause', '--auto-close', '--timeout', 'ct resume', '--dry-run', '--no-prompt', '--snapshot']) assert.ok(help.includes(s), s)
+})
+
 test('unknown flag is a usage error', () =>
   assert.throws(() => parseArgs(['--bogus']), /bogus/))
 
