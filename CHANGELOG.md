@@ -1,3 +1,9 @@
+## [2.2.0](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.4...v2.2.0) (2026-11-18)
+
+### Features
+
+* **iterm2:** choose where resumed sessions open with --window and targetWindow ([a8b331a](https://github.com/ecoutu/claude-term-tabs/commit/a8b331aaf63cb997f46ff5014dbf33a6134c758c))
+
 ## [2.1.4](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.3...v2.1.4) (2026-11-11)
 
 ### Bug Fixes
