@@ -23,7 +23,7 @@ export function weztermAdapter (exec: Exec, shell: string = process.env.SHELL ??
     },
     closePane: (pane) => { cli(['kill-pane', '--pane-id', pane.id]) },
     openPane: (cwd, command, opts) => {
-      const newWindow = opts?.newWindow === true
+      const newWindow = opts?.target === 'new'
       const windowId = newWindow || newWindowPane === undefined ? undefined : list().find(p => String(p.pane_id) === newWindowPane)?.window_id
       const where = newWindow ? ['--new-window'] : windowId !== undefined ? ['--window-id', String(windowId)] : []
       if (newWindow) newWindowPane = undefined

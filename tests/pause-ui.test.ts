@@ -30,7 +30,7 @@ function sim (states: Array<Array<Tracked['state']>>) {
     transcriptOf: () => '/nope',
     sizeOf: () => 0,
     snapshotDir: '/nope',
-    config: { stopPrompt: 's', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10, excludeDirs: [] },
+    config: { stopPrompt: 's', resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10, excludeDirs: [], targetWindow: 'current' },
     warn: () => {},
     inFront: () => 'claude'
   }

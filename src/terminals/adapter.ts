@@ -2,6 +2,15 @@ import type { Exec, Pane } from '../types.ts'
 import { iterm2Adapter } from './iterm2.ts'
 import { weztermAdapter } from './wezterm.ts'
 
+/** Where a new tab opens: the caller's window, a window other than iTerm2's hotkey window, or a new window. */
+export const WINDOW_TARGETS = Object.freeze(['current', 'main', 'new'] as const)
+export type WindowTarget = typeof WINDOW_TARGETS[number]
+
+/** Narrow a string from the config or the command line to a window target. */
+export function isWindowTarget (s: unknown): s is WindowTarget {
+  return WINDOW_TARGETS.some(t => t === s)
+}
+
 /** A terminal that can list, focus, type into, close and open panes. */
 export interface TerminalAdapter {
   name: 'iterm2' | 'wezterm'
@@ -10,8 +19,8 @@ export interface TerminalAdapter {
   sendText(pane: Pane, text: string): void
   /** Ends the pane once nothing but its shell is running (iTerm2 types `exit`, WezTerm kills the pane). */
   closePane(pane: Pane): void
-  /** Opens a pane running `command` in `cwd`; returns the new pane id. */
-  openPane(cwd: string, command: string, opts?: { newWindow?: boolean }): string
+  /** Opens a pane running `command` in `cwd` (in the `current` window unless `target` says otherwise); returns the new pane id. */
+  openPane(cwd: string, command: string, opts?: { target?: WindowTarget }): string
 }
 
 const FACTORIES: Readonly<Record<TerminalAdapter['name'], (exec: Exec) => TerminalAdapter>> = {

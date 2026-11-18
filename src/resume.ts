@@ -53,7 +53,7 @@ export function runResume (steps: ResumeStep[], adapter: TerminalAdapter | undef
       continue
     }
     try {
-      adapter?.openPane(s.session.cwd, s.command, { newWindow: s.newWindow })
+      adapter?.openPane(s.session.cwd, s.command, { target: s.newWindow ? 'new' : 'current' })
       opened++
       write(`→ ${name}`)
     } catch (err) {

@@ -43,6 +43,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
   }
   const focused: string[] = []
   const opened: Array<[string, string]> = []
+  const targets: Array<string | undefined> = []
   const sent: Array<[string, string]> = []
   const panes: Pane[] = SESSIONS.filter(s => s.live !== false).map(s => ({
     id: `pane-${s.id}`, tty: `/dev/${s.tty}`, title: s.title, windowId: 'w', windowIndex: s.tab === 3 ? (opts.windows ?? 1) : 1, tabIndex: s.tab
@@ -53,7 +54,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     focus: p => { focused.push(p.id) },
     sendText: (p, text) => { sent.push([p.id, text]) },
     closePane: () => {},
-    openPane: (cwd, cmd) => { opened.push([cwd, cmd]); return 'new' }
+    openPane: (cwd, cmd, o) => { opened.push([cwd, cmd]); targets.push(o?.target); return 'new' }
   }
   let picked: string | undefined
   const deps: Deps = {
@@ -76,7 +77,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     completionWarning: () => undefined,
     shell: '/bin/bash'
   }
-  return { deps, calls, out, err, focused, opened, sent, choose: (id: string) => { picked = id } }
+  return { deps, calls, out, err, focused, opened, targets, sent, choose: (id: string) => { picked = id } }
 }
 
 const haiku = (ids: string[]) => () => ({ status: 0, stdout: JSON.stringify({ structured_output: { matches: ids.map(sessionId => ({ sessionId, summary: `about ${sessionId}` })) } }) })
@@ -179,6 +180,39 @@ test('--all resumes a closed session in a new pane once it is chosen', () => {
   w.choose('old-id')
   assert.equal(run(parseArgs(['--all', '--no-llm', 'cube']), w.deps), 0)
   assert.deepEqual(w.opened, [['/w/gone-repo', 'claude --resume old-id']])
+})
+
+const resumeOld = (args: string[], config?: unknown) => {
+  const w = world()
+  w.deps.dirExists = () => true
+  if (config !== undefined) writeFileSync(w.deps.dirs.config, JSON.stringify(config))
+  w.choose('old-id')
+  return { w, code: run(parseArgs(['--all', '--no-llm', 'cube', ...args]), w.deps) }
+}
+
+test('--all resumes in the current window by default', () => {
+  const { w, code } = resumeOld([])
+  assert.equal(code, 0)
+  assert.deepEqual(w.targets, ['current'])
+  assert.match(w.out.join('\n'), /in a new tab$/)
+})
+
+test('targetWindow in the config chooses where a resumed session opens', () => {
+  const { w } = resumeOld([], { targetWindow: 'main' })
+  assert.deepEqual(w.targets, ['main'])
+})
+
+test('--window overrides targetWindow', () => {
+  const { w } = resumeOld(['--window', 'new'], { targetWindow: 'main' })
+  assert.deepEqual(w.targets, ['new'])
+  assert.match(w.out.join('\n'), /in a new window$/)
+})
+
+test('an unknown --window is an error naming the choices, and opens nothing', () => {
+  const { w, code } = resumeOld(['--window', 'dropdown'])
+  assert.equal(code, 2)
+  assert.deepEqual(w.opened, [])
+  assert.match(w.err.join('\n'), /unknown window "dropdown" \(choose current, main or new\)/)
 })
 
 test('--all leaves out closed sessions in excludeDirs', () => {
@@ -368,7 +402,7 @@ test('completion offers the public subcommands and never the internal ones', asy
 
 test('completion offers the search flags after ctt', async () => {
   const words = await complete(['--'])
-  for (const flag of ['--list', '--all', '--json', '--no-llm', '--terminal', '--help']) assert.ok(words.includes(flag), `${flag} in ${words.join(' ')}`)
+  for (const flag of ['--list', '--all', '--json', '--no-llm', '--terminal', '--window', '--help']) assert.ok(words.includes(flag), `${flag} in ${words.join(' ')}`)
   assert.ok(!words.some(s => s.includes('_focus') || s.includes('_send-stop')))
 })
 
@@ -377,6 +411,9 @@ test('completion offers each subcommand its own flags', async () => {
   assert.deepEqual((await complete(['resume', '--'])).sort(), ['--dry-run', '--help', '--no-prompt', '--snapshot'])
   assert.deepEqual(await complete(['completion', '-']), ['--help'])
 })
+
+test('completion offers the window targets after --window', async () =>
+  assert.deepEqual((await complete(['--window', ''])).sort(), ['current', 'main', 'new']))
 
 test('completion offers the terminal names after --terminal', async () => {
   assert.deepEqual((await complete(['--terminal', ''])).sort(), ['iterm2', 'wezterm'])
@@ -543,7 +580,7 @@ test('ctt completion completes the shell names', async () => {
 
 test('zsh completion describes every flag and subcommand in the words of --help', async () => {
   const lines = [...await complete([''], '/bin/zsh'), ...await complete(['--'], '/bin/zsh'), ...await complete(['pause', '--'], '/bin/zsh'), ...await complete(['resume', '--'], '/bin/zsh')]
-  assert.equal(lines.length, 16, lines.join('\n'))
+  assert.equal(lines.length, 17, lines.join('\n'))
   for (const line of lines) {
     const desc = line.slice(line.indexOf(':') + 1)
     assert.ok(desc !== '' && HELP.includes(desc), `${line} not in --help`)
@@ -585,7 +622,7 @@ test('a completion request answers without loading the rest of ctt', () => {
   const hook = 'data:text/javascript,import{registerHooks}from"node:module";registerHooks({resolve(s,c,n){const r=n(s,c);process.stderr.write("loaded "+r.url+"\\n");return r}})'
   const r = spawnSync(process.execPath, ['--import', hook, join(import.meta.dirname, '..', 'bin', 'claude-term-tabs'), '--complete', 'bash', 'ctt', '--'], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
-  assert.deepEqual(r.stdout.trim().split('\n'), ['--list', '--all', '--json', '--no-llm', '--terminal', '--help'])
+  assert.deepEqual(r.stdout.trim().split('\n'), ['--list', '--all', '--json', '--no-llm', '--terminal', '--window', '--help'])
   const loaded = r.stderr.split('\n').filter(l => l.includes('/src/')).map(l => l.slice(l.indexOf('/src/') + 1))
   assert.ok(loaded.length > 0, r.stderr)
   assert.deepEqual(loaded.filter(f => ['src/cli.ts', 'src/commands.ts', 'src/help.ts'].includes(f)), [], loaded.join(' '))

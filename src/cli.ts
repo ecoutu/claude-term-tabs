@@ -13,7 +13,7 @@ import { lineWriter } from './output.ts'
 import { defaultDirs } from './paths.ts'
 import { formatPickerLine, pick as realPick } from './picker.ts'
 import { clearWinner, rankLocal, tokenize } from './score.ts'
-import { detectAdapter, type TerminalAdapter } from './terminals/adapter.ts'
+import { detectAdapter, isWindowTarget, WINDOW_TARGETS, type TerminalAdapter, type WindowTarget } from './terminals/adapter.ts'
 import { runCommand } from './commands.ts'
 import { listPanesOrWarn } from './discover.ts'
 import { HELP } from './help.ts'
@@ -34,6 +34,7 @@ export interface Options {
   json: boolean
   noLlm: boolean
   terminal?: string
+  window?: string
   help: boolean
 }
 
@@ -68,6 +69,7 @@ interface Context {
   adapter?: TerminalAdapter
   config: Config
   multiWindow: boolean
+  target: WindowTarget
 }
 
 /** Parse argv; throws on unknown flags. */
@@ -80,6 +82,7 @@ export function parseArgs (argv: string[]): Options {
     json: values.json,
     noLlm: values['no-llm'],
     terminal: values.terminal,
+    window: values.window,
     help: values.help
   }
 }
@@ -92,10 +95,11 @@ export function run (opts: Options, deps: Deps): number {
   }
   try {
     const config = loadConfig(deps.dirs.config)
+    const target = windowTarget(opts.window, config)
     const adapter = deps.resolveAdapter(opts.terminal)
     const panes = listPanesOrWarn(adapter, deps)
     const pool = gatherCandidates(opts, deps, panes, config)
-    const ctx: Context = { opts, deps, adapter, config, multiWindow: new Set(panes.map(p => p.windowIndex)).size > 1 }
+    const ctx: Context = { opts, deps, adapter, config, multiWindow: new Set(panes.map(p => p.windowIndex)).size > 1, target }
     return search(ctx, pool)
   } catch (err) {
     deps.stderr(`claude-term-tabs: ${(err as Error).message}`)
@@ -156,7 +160,7 @@ function act (ctx: Context, c: Candidate, summary?: string): number {
 }
 
 function resume (ctx: Context, c: Candidate): number {
-  const { deps, adapter, config } = ctx
+  const { deps, adapter, config, target } = ctx
   const command = resumeCommand(config, c.digest.sessionId)
   if (c.dirGone === true) {
     deps.stdout(`${c.digest.cwd || '(unknown directory)'} no longer exists, and claude --resume only finds a session from the directory it ran in.\n  cd ${shellQuote(c.digest.cwd)} && ${command}`)
@@ -166,9 +170,15 @@ function resume (ctx: Context, c: Candidate): number {
     deps.stdout(`cd ${shellQuote(c.digest.cwd)} && ${command}`)
     return EXIT_OK
   }
-  adapter.openPane(c.digest.cwd, command)
-  deps.stdout(`→ resuming ${c.digest.title ?? c.digest.sessionId} · ${c.digest.repo} in a new tab`)
+  adapter.openPane(c.digest.cwd, command, { target })
+  deps.stdout(`→ resuming ${c.digest.title ?? c.digest.sessionId} · ${c.digest.repo} in a new ${target === 'new' ? 'window' : 'tab'}`)
   return EXIT_OK
+}
+
+function windowTarget (flag: string | undefined, config: Config): WindowTarget {
+  if (flag === undefined) return config.targetWindow
+  if (isWindowTarget(flag)) return flag
+  throw new Error(`unknown window "${flag}" (choose ${WINDOW_TARGETS.slice(0, -1).join(', ')} or ${WINDOW_TARGETS.at(-1)})`)
 }
 
 function printList (ctx: Context, cands: Candidate[], summaries: Map<string, string>): number {

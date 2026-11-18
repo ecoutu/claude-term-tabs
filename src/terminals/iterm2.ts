@@ -1,5 +1,5 @@
 import type { Exec, Pane } from '../types.ts'
-import type { TerminalAdapter } from './adapter.ts'
+import type { TerminalAdapter, WindowTarget } from './adapter.ts'
 
 const LIST_SCRIPT = `function run () {
   const app = Application('iTerm2')
@@ -46,14 +46,41 @@ const PASTE_START = '\x1b[200~'
 const PASTE_END = '\x1b[201~'
 const CLOSE_SCRIPT = sessionScript("s.write({ text: 'exit' })")
 
-const OPEN_SCRIPT = `function run (argv) {
+interface ItermWindow { isHotkeyWindow(): boolean }
+interface ItermApp<W extends ItermWindow> { currentWindow(): W | null, windows(): W[] }
+
+/**
+ * The window a new tab goes in, or null for a new window. `main` skips the hotkey window and falls
+ * back to the frontmost other window. Runs inside osascript too, embedded as source, so it uses
+ * nothing outside its arguments.
+ */
+export function pickWindow<W extends ItermWindow> (app: ItermApp<W>, target: WindowTarget): W | null {
+  if (target === 'new') return null
+  const current = app.currentWindow()
+  if (target === 'current') return current
+  const isMain = (w: W): boolean => {
+    try { return !w.isHotkeyWindow() } catch (e) { return false }
+  }
+  if (current && isMain(current)) return current
+  return app.windows().find(isMain) || null
+}
+
+const OPEN_SCRIPT = `${pickWindow.toString()}
+function run (argv) {
   const app = Application('iTerm2')
   const quoted = "'" + argv[0].split("'").join("'\\\\''") + "'"
-  const fresh = argv[2] === 'new-window' || !app.currentWindow()
-  const session = fresh
-    ? app.createWindowWithDefaultProfile().currentSession()
-    : app.currentWindow().createTabWithDefaultProfile().currentSession()
+  const target = argv[2]
+  const win = pickWindow(app, target)
+  const session = win
+    ? win.createTabWithDefaultProfile().currentSession()
+    : app.createWindowWithDefaultProfile().currentSession()
   session.write({ text: 'cd ' + quoted + ' && ' + argv[1] })
+  if (target === 'main') {
+    if (win) win.select()
+    for (const w of app.windows()) {
+      try { if (w.isHotkeyWindow()) w.hideHotkeyWindow() } catch (e) {}
+    }
+  }
   app.activate()
   return session.id()
 }`
@@ -74,6 +101,6 @@ export function iterm2Adapter (exec: Exec): TerminalAdapter {
     focus: (pane) => { jxa(FOCUS_SCRIPT, [pane.id]) },
     sendText: (pane, text) => { jxa(SEND_SCRIPT, [pane.id, `${PASTE_START}${text}${PASTE_END}`]) },
     closePane: (pane) => { jxa(CLOSE_SCRIPT, [pane.id]) },
-    openPane: (cwd, command, opts) => jxa(OPEN_SCRIPT, [cwd, command, opts?.newWindow === true ? 'new-window' : 'tab']).trim()
+    openPane: (cwd, command, opts) => jxa(OPEN_SCRIPT, [cwd, command, opts?.target ?? 'current']).trim()
   }
 }
