@@ -19,12 +19,12 @@ test('defaults match the existing prompt files byte for byte', () => {
 
 test('missing file gives defaults', () =>
   assert.deepEqual(loadConfig('/nope/config.json'), {
-    resumeCommand: undefined, stopPrompt: DEFAULT_STOP_PROMPT, resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10, excludeDirs: []
+    resumeCommand: undefined, stopPrompt: DEFAULT_STOP_PROMPT, resumePrompt: DEFAULT_RESUME_PROMPT, pauseTimeoutMinutes: 10, excludeDirs: [], targetWindow: 'current'
   }))
 
 test('every key can be overridden', () =>
-  assert.deepEqual(loadConfig(configFile({ resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ctt-test-missing'] })),
-    { resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ctt-test-missing'] }))
+  assert.deepEqual(loadConfig(configFile({ resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ctt-test-missing'], targetWindow: 'main' })),
+    { resumeCommand: 'c {id}', stopPrompt: 's', resumePrompt: 'r', pauseTimeoutMinutes: 3, excludeDirs: ['/ctt-test-missing'], targetWindow: 'main' }))
 
 test('excludeDirs expands ~ and drops trailing slashes', () =>
   // Paths that can't exist, so realpath adds nothing whatever the host's symlinks are.
@@ -39,6 +39,7 @@ test('bad values throw naming the key', () => {
   assert.throws(() => loadConfig(configFile({ excludeDirs: '/x' })), /excludeDirs/)
   assert.throws(() => loadConfig(configFile({ excludeDirs: ['relative/dir'] })), /excludeDirs/)
   assert.throws(() => loadConfig(configFile({ excludeDirs: [''] })), /excludeDirs/)
+  assert.throws(() => loadConfig(configFile({ targetWindow: 'dropdown' })), /targetWindow must be one of current, main, new/)
 })
 
 test('an excluded dir reached through a symlink also matches its real path', () => {

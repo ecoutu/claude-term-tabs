@@ -9,7 +9,7 @@ import type { TerminalAdapter } from '../src/terminals/adapter.ts'
 const s = (id: string, windowIndex?: number, tabIndex?: number): SnapshotSession =>
   ({ sessionId: id, cwd: `/w/${id}`, repo: id, windowIndex, tabIndex, handoffWritten: true })
 const snap: Snapshot = { id: 'x', createdAt: '', sessions: [s('b2', 2, 2), s('a1', 1, 1), s('none'), s('b1', 2, 1), s('a2', 1, 2)] }
-const config: Config = { stopPrompt: DEFAULT_STOP_PROMPT, resumePrompt: 'Say "hi" to $HOME\nit\'s fine', pauseTimeoutMinutes: 10, excludeDirs: [] }
+const config: Config = { stopPrompt: DEFAULT_STOP_PROMPT, resumePrompt: 'Say "hi" to $HOME\nit\'s fine', pauseTimeoutMinutes: 10, excludeDirs: [], targetWindow: 'current' }
 const exists = () => true
 
 test('steps follow window then tab order, missing positions last, with one new window per group', () => {
@@ -41,7 +41,7 @@ function fakeAdapter () {
   const opened: Array<[string, string, boolean]> = []
   const adapter: TerminalAdapter = {
     name: 'iterm2', listPanes: () => [], focus: () => {}, sendText: () => {}, closePane: () => {},
-    openPane: (cwd, cmd, opts) => { opened.push([cwd, cmd, opts?.newWindow === true]); return 'id' }
+    openPane: (cwd, cmd, opts) => { opened.push([cwd, cmd, opts?.target === 'new']); return 'id' }
   }
   return { adapter, opened }
 }

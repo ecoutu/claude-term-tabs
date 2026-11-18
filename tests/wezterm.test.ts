@@ -60,9 +60,9 @@ test('openPane returns the spawned pane id', () => {
   assert.equal(weztermAdapter(exec, '/bin/zsh').openPane('/x', 'c'), '41')
 })
 
-test('openPane with newWindow spawns a new window', () => {
+test('openPane with target new spawns a new window', () => {
   const { exec, calls } = recorder()
-  weztermAdapter(exec, '/bin/zsh').openPane('/x', 'c', { newWindow: true })
+  weztermAdapter(exec, '/bin/zsh').openPane('/x', 'c', { target: 'new' })
   assert.deepEqual(calls[0].args.slice(0, 3), ['cli', 'spawn', '--new-window'])
 })
 
@@ -73,7 +73,7 @@ test('openPane after a new window opens its tab in that window, not the caller\'
     return { status: 0, stdout: args[1] === 'list' ? listJson : '40\n', stderr: '' }
   }
   const adapter = weztermAdapter(exec, '/bin/zsh')
-  adapter.openPane('/x', 'a', { newWindow: true })
+  adapter.openPane('/x', 'a', { target: 'new' })
   adapter.openPane('/y', 'b')
   assert.deepEqual(calls.filter(a => a[1] === 'spawn')[1].slice(0, 4), ['cli', 'spawn', '--window-id', '7'])
 })
@@ -88,12 +88,18 @@ test('a failed new window does not send the next tabs to the previous new window
     return { status: 0, stdout: '40\n', stderr: '' }
   }
   const adapter = weztermAdapter(exec, '/bin/zsh')
-  adapter.openPane('/x', 'a', { newWindow: true })
+  adapter.openPane('/x', 'a', { target: 'new' })
   failNext = true
-  assert.throws(() => adapter.openPane('/y', 'b', { newWindow: true }))
+  assert.throws(() => adapter.openPane('/y', 'b', { target: 'new' }))
   failNext = false
   adapter.openPane('/z', 'c')
   assert.equal(spawns[2].includes('--window-id'), false)
+})
+
+test('openPane with target main opens in the caller\'s window, since WezTerm has no hotkey window', () => {
+  const { exec, calls } = recorder('41\n')
+  weztermAdapter(exec, '/bin/zsh').openPane('/x', 'c', { target: 'main' })
+  assert.deepEqual(calls[0].args.slice(0, 3), ['cli', 'spawn', '--cwd'])
 })
 
 test('openPane without an earlier new window opens in the caller\'s window', () => {

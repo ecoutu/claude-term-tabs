@@ -48,7 +48,7 @@ clone, it runs ctt from where it was when you generated the script, so generate 
 ## Usage
 
 ```
-ctt [query...] [--list] [--all] [--json] [--no-llm] [--terminal iterm2|wezterm]
+ctt [query...] [--list] [--all] [--json] [--no-llm] [--terminal iterm2|wezterm] [--window current|main|new]
 ```
 
 | Situation | What happens |
@@ -58,6 +58,7 @@ ctt [query...] [--list] [--all] [--json] [--no-llm] [--terminal iterm2|wezterm]
 | No query | Picker over every live session, most recent first |
 | `--list` | Prints matches, never switches |
 | `--all` | Also searches closed sessions; choosing one resumes it in a new tab |
+| `--window main` | Resumes outside iTerm2's hotkey (drop-down) window; see `targetWindow` below |
 | `--json` | Machine-readable output, for debugging; no format promise |
 | `--no-llm` | Local matching only |
 | Not in iTerm2 or WezTerm | Uses whichever one is running, else lists without switching |
@@ -115,12 +116,23 @@ Sessions already running are skipped, so running it twice is harmless. Snapshots
   "stopPrompt": "Pausing for a machine restart. ...",
   "resumePrompt": "Resumed after a machine restart. ...",
   "pauseTimeoutMinutes": 10,
-  "excludeDirs": ["~/.claude-mem/observer-sessions"]
+  "excludeDirs": ["~/.claude-mem/observer-sessions"],
+  "targetWindow": "main"
 }
 ```
 
 `excludeDirs` leaves closed sessions out of `--all` when their working directory (the one ctt
 shows and resumes in) is one of those directories or below one. Live sessions are always listed.
+
+`targetWindow` sets where a session chosen from `--all` opens; `--window` overrides it for one run.
+
+| Value | Opens the session in |
+|-------|----------------------|
+| `current` (default) | A new tab in the window ctt runs in |
+| `main` | A new tab in that window unless it is iTerm2's hotkey (drop-down) window; then in the frontmost other window, or a new window if there is none. The hotkey window hides afterwards. WezTerm treats it as `current`. |
+| `new` | A new window |
+
+Set `"targetWindow": "main"` if you run ctt from the hotkey window but work in regular windows.
 
 ## Cost and speed
 

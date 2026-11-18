@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { iterm2Adapter } from '../src/terminals/iterm2.ts'
+import { iterm2Adapter, pickWindow } from '../src/terminals/iterm2.ts'
 import type { Exec, Pane } from '../src/types.ts'
 import { fixture } from './helpers.ts'
 
@@ -70,10 +70,49 @@ test('openPane returns the new session id', () => {
   assert.equal(iterm2Adapter(exec).openPane('/x', 'cmd'), 'NEW-ID')
 })
 
-test('openPane with newWindow adds a new-window argument', () => {
+test('openPane passes the window target, opening in the current window by default', () => {
   const { exec, calls } = recorder('ID')
-  iterm2Adapter(exec).openPane('/x', 'cmd', { newWindow: true })
-  assert.deepEqual(calls[0].args.slice(-3), ['/x', 'cmd', 'new-window'])
-  iterm2Adapter(exec).openPane('/x', 'cmd')
-  assert.deepEqual(calls[1].args.slice(-3), ['/x', 'cmd', 'tab'])
+  const adapter = iterm2Adapter(exec)
+  adapter.openPane('/x', 'cmd', { target: 'new' })
+  adapter.openPane('/x', 'cmd', { target: 'main' })
+  adapter.openPane('/x', 'cmd')
+  assert.deepEqual(calls.map(c => c.args.slice(-3)), [['/x', 'cmd', 'new'], ['/x', 'cmd', 'main'], ['/x', 'cmd', 'current']])
 })
+
+interface FakeWindow { name: string, isHotkeyWindow: () => boolean }
+const win = (name: string, hotkey = false): FakeWindow => ({ name, isHotkeyWindow: () => hotkey })
+const app = (current: FakeWindow | null, windows: FakeWindow[]) => ({ currentWindow: () => current, windows: () => windows })
+const asEmbedded = new Function(`return ${pickWindow.toString()}`)() as typeof pickWindow
+
+for (const [label, pick] of [['pickWindow', pickWindow], ['pickWindow as embedded in the script', asEmbedded]] as const) {
+  test(`${label}: current keeps today's behavior, even in the hotkey window`, () => {
+    const hotkey = win('hotkey', true)
+    assert.equal(pick(app(hotkey, [hotkey, win('main')]), 'current'), hotkey)
+    assert.equal(pick(app(null, []), 'current'), null)
+  })
+
+  test(`${label}: new always asks for a new window`, () =>
+    assert.equal(pick(app(win('main'), [win('main')]), 'new'), null))
+
+  test(`${label}: main uses the current window when it is not the hotkey window`, () => {
+    const main = win('main')
+    assert.equal(pick(app(main, [win('hotkey', true), main]), 'main'), main)
+  })
+
+  test(`${label}: main from the hotkey window uses the frontmost other window`, () => {
+    const hotkey = win('hotkey', true)
+    const front = win('front')
+    assert.equal(pick(app(hotkey, [hotkey, front, win('back')]), 'main'), front)
+  })
+
+  test(`${label}: main asks for a new window when the hotkey window is the only one`, () => {
+    const hotkey = win('hotkey', true)
+    assert.equal(pick(app(hotkey, [hotkey]), 'main'), null)
+  })
+
+  test(`${label}: main skips a window that cannot say whether it is the hotkey window`, () => {
+    const broken = { name: 'broken', isHotkeyWindow: () => { throw new Error('gone') } }
+    const ok = win('ok')
+    assert.equal(pick(app(broken, [broken, ok]), 'main'), ok)
+  })
+}

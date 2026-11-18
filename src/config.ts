@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
+import { isWindowTarget, WINDOW_TARGETS, type WindowTarget } from './terminals/adapter.ts'
 
 /** Prompt typed into every session by `ctt pause`. */
 export const DEFAULT_STOP_PROMPT = "Pausing for a machine restart. Stop at the nearest safe point: start nothing new, and do not push, merge, apply, post or transition anything that was not already mid-flight. Leave no file half-edited; do not commit unless that was already the plan. Background jobs, Monitors, /loop wakeups and subagents will die with the restart.\n\nThen reply with a message headed HANDOFF (under 20 lines):\n- Goal: what this session is for (ticket/PR refs)\n- Done: what is finished, with PR numbers, commits, ticket states\n- In flight: branch, worktree path, uncommitted changes, anything half-done\n- Lost on restart: background watches/monitors/loops/agents and how to restart them\n- Next step: the exact next action\n- Open questions: anything you need from me\n\nThen stop and wait.\n"
@@ -18,6 +19,8 @@ export interface Config {
   pauseTimeoutMinutes: number
   /** Absolute dirs (and their real paths): `--all` leaves out closed sessions whose latest cwd is one of them or below one. */
   excludeDirs: string[]
+  /** Where a session resumed from `--all` opens; `--window` overrides it. */
+  targetWindow: WindowTarget
 }
 
 /** Load config; a missing file gives defaults, anything unreadable or invalid throws. */
@@ -47,6 +50,7 @@ function validate (o: Record<string, unknown>, path: string): Partial<Config> {
   }
   const t = o.pauseTimeoutMinutes
   if (t !== undefined && (typeof t !== 'number' || !Number.isFinite(t) || t <= 0)) throw bad('pauseTimeoutMinutes', 'a positive number')
+  if (o.targetWindow !== undefined && !isWindowTarget(o.targetWindow)) throw bad('targetWindow', `one of ${WINDOW_TARGETS.join(', ')}`)
   const x = o.excludeDirs
   let excludeDirs: string[] | undefined
   if (x !== undefined) {
@@ -79,6 +83,7 @@ function withDefaults (c: Partial<Config>): Config {
     stopPrompt: c.stopPrompt ?? DEFAULT_STOP_PROMPT,
     resumePrompt: c.resumePrompt ?? DEFAULT_RESUME_PROMPT,
     pauseTimeoutMinutes: c.pauseTimeoutMinutes ?? DEFAULT_PAUSE_TIMEOUT_MINUTES,
-    excludeDirs: c.excludeDirs ?? []
+    excludeDirs: c.excludeDirs ?? [],
+    targetWindow: c.targetWindow ?? 'current'
   }
 }

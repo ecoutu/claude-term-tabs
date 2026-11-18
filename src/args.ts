@@ -1,6 +1,6 @@
 import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
 import { shellQuote } from './shell.ts'
-import { TERMINAL_NAMES } from './terminals/adapter.ts'
+import { TERMINAL_NAMES, WINDOW_TARGETS } from './terminals/adapter.ts'
 
 /** One flag. `--help` text, tab completion and parsing all read the same table. */
 export interface Flag {
@@ -26,6 +26,7 @@ export const SEARCH_FLAGS = {
   json: { describe: 'machine-readable output (implies --list)' },
   'no-llm': { describe: 'local matching only, never call Haiku' },
   terminal: { value: 'NAME', describe: `${TERMINAL_NAMES.join(' | ')} (default: detected)`, choices: TERMINAL_NAMES },
+  window: { value: 'WHERE', describe: 'where --all resumes: current | main (never the iTerm2 hotkey window) | new (default: targetWindow, else current)', choices: WINDOW_TARGETS },
   help: HELP_FLAG
 } as const satisfies Flags
 
