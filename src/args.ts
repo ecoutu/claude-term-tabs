@@ -47,7 +47,7 @@ export const RESUME_FLAGS = {
 
 /** Flags of `ctt send`. */
 export const SEND_FLAGS = {
-  message: { short: 'm', value: 'TEXT', describe: 'what to type into each session (required)' },
+  message: { short: 'm', value: 'TEXT', describe: 'what to type into each session (required; - reads it from stdin)' },
   every: { describe: 'send to every open session the query matches instead of choosing in a picker' },
   help: HELP_FLAG
 } as const satisfies Flags
