@@ -122,6 +122,13 @@ or later. Each chosen session is checked again just before typing, so one that m
 prompt or exited while the list was open is skipped. It prints each session it typed into, then
 `Sent to N of M sessions.`
 
+With a query, the list holds the sessions that match it by word, plus the ones Haiku says the query
+applies to, each with a short summary. When every row matched your words, every row starts marked, so
+you unmark the wrong ones and press Enter. A session only Haiku chose is labelled `Haiku:` and then
+nothing starts marked, so text never reaches it unless you mark it yourself. Haiku sees every open
+session, 15 per call. `--no-llm` skips it, and `--every` never uses it, so nothing is typed on a
+model's guess without you seeing the list.
+
 ctt types into a session only when it is idle or busy and Claude is in front of its tab; Claude Code
 queues what is typed while it works. Sessions waiting on a prompt, in shell mode, or outside a
 supported terminal are skipped with a warning, and ctt exits 1. With no terminal, `--every` is

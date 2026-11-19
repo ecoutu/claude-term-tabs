@@ -115,6 +115,17 @@ test('numbered multi-select chooses a session once even when its number repeats'
   assert.deepEqual(pickMany(cands, exec, { hasFzf: false, prompt: () => '2,1,2' }).map(c => c.digest.sessionId), ['S2', 'S1'])
 })
 
+test('multi-select can start with every row marked and show a summary per row', () => {
+  let args: string[] = []
+  let input = ''
+  const exec: Exec = (_cmd, a, i) => { args = a; input = i ?? ''; return { status: 130, stdout: '', stderr: '' } }
+  pickMany([cand('S1')], exec, { hasFzf: true, prompt: () => '' }, { preselect: true, summaries: new Map([['S1', 'fixing envoy']]) })
+  assert.ok(args.join(' ').includes('--bind load:select-all'), args.join(' '))
+  assert.match(input, /fixing envoy/)
+  pickMany([cand('S1')], exec, { hasFzf: true, prompt: () => '' })
+  assert.ok(!args.join(' ').includes('select-all'))
+})
+
 test('multi-select fzf ignores Enter and double-click until a row is marked', () => {
   let args: string[] = []
   const exec: Exec = (_cmd, a) => { args = a; return { status: 130, stdout: '', stderr: '' } }

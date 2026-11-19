@@ -582,7 +582,7 @@ test('ctt completion completes the shell names', async () => {
 
 test('zsh completion describes every flag and subcommand in the words of --help', async () => {
   const lines = [...await complete([''], '/bin/zsh'), ...await complete(['--'], '/bin/zsh'), ...await complete(['pause', '--'], '/bin/zsh'), ...await complete(['resume', '--'], '/bin/zsh'), ...await complete(['send', '--'], '/bin/zsh')]
-  assert.equal(lines.length, 21, lines.join('\n'))
+  assert.equal(lines.length, 22, lines.join('\n'))
   for (const line of lines) {
     const desc = line.slice(line.indexOf(':') + 1)
     assert.ok(desc !== '' && HELP.includes(desc), `${line} not in --help`)
@@ -640,7 +640,7 @@ test('--help starts with usage lines built from the subcommand tables', () => {
   assert.ok(HELP.startsWith(`usage: ctt [query...] [options]
        ctt pause [--auto-close] [--timeout MIN]
        ctt resume [--dry-run] [--no-prompt] [--snapshot FILE]
-       ctt send [--message TEXT] [--every] [query...]
+       ctt send [--message TEXT] [--every] [--no-llm] [query...]
        ctt completion [bash|zsh]
 
 Find a Claude Code session`), HELP)
@@ -695,29 +695,6 @@ test('send without --every and without a terminal is a usage error', async () =>
   assert.deepEqual(w.sent, [])
 })
 
-test('send refuses a message that is empty once control characters are removed', async () => {
-  const w = world()
-  assert.equal(await runCommand(['send', '--every', '-m', '\x1b\x07'], w.deps), 2)
-  assert.deepEqual(w.sent, [])
-})
-
-test('send stops when no supported terminal is found', async () => {
-  const w = world()
-  w.deps.resolveAdapter = () => undefined
-  assert.equal(await runCommand(['send', '--every', '-m', 'hi'], w.deps), 2)
-  assert.match(w.err.join('\n'), /supported terminal/)
-})
-
-test('send keeps going when typing into one session fails', async () => {
-  const w = world()
-  const adapter = w.deps.resolveAdapter()!
-  w.deps.resolveAdapter = () => ({ ...adapter, sendText: (p, t) => { if (p.id === 'pane-csv-a') throw new Error('osascript died'); adapter.sendText(p, t) } })
-  assert.equal(await runCommand(['send', '--every', '-m', 'hi'], w.deps), 1)
-  assert.equal(w.sent.length, 2)
-  assert.match(w.err.join('\n'), /could not type into .*osascript died/)
-  assert.match(w.out.join('\n'), /Sent to 2 of 3 sessions\.$/)
-})
-
 test('send without --every offers the matching sessions and types into the ones chosen', async () => {
   const w = world()
   let offered: string[] = []
@@ -736,32 +713,6 @@ test('send sends nothing when the picker is cancelled', async () => {
   assert.match(w.out.join('\n'), /No sessions chosen\./)
 })
 
-test('send re-checks each chosen session after the picker and skips one now waiting on a prompt', async () => {
-  const w = world()
-  w.deps.pickMany = cands => {
-    writeFileSync(join(w.deps.dirs.sessions, '102.json'), JSON.stringify({ pid: 102, sessionId: 'csv-a', cwd: '/w/api-orders', status: 'waiting', entrypoint: 'cli' }))
-    return cands
-  }
-  assert.equal(await runCommand(['send', 'csv', '-m', 'hi'], w.deps), 1)
-  assert.deepEqual(w.sent, [['pane-csv-b', 'hi']])
-  assert.match(w.err.join('\n'), /waiting on a prompt/)
-})
-
-test('send skips a chosen session that exited while the picker was open', async () => {
-  const w = world()
-  w.deps.pickMany = cands => { rmSync(join(w.deps.dirs.sessions, '102.json')); return cands }
-  assert.equal(await runCommand(['send', 'csv', '-m', 'hi'], w.deps), 1)
-  assert.deepEqual(w.sent, [['pane-csv-b', 'hi']])
-  assert.match(w.err.join('\n'), /no longer running/)
-})
-
-test('send reports a mistyped choice instead of treating it as a cancel', async () => {
-  const w = world()
-  w.deps.pickMany = () => { throw new Error('invalid choice "1,x"') }
-  assert.equal(await runCommand(['send', '-m', 'hi'], w.deps), 2)
-  assert.match(w.err.join('\n'), /invalid choice/)
-})
-
 test('send -m - reads the message from stdin, without its trailing newline', async () => {
   const w = world()
   w.deps.readStdin = () => 'first line\nsecond line\n'
@@ -777,9 +728,111 @@ test('send -m - with nothing on stdin is a usage error', async () => {
   assert.match(w.err.join('\n'), /--message/)
 })
 
+test('send marks no row when Haiku suggests a session the query words do not match', async () => {
+  const w = world({ claude: haiku(['envoy-id']) })
+  let offered: string[] = []
+  let opts: { preselect?: boolean, summaries?: Map<string, string> } | undefined
+  w.deps.pickMany = (cands, o) => { offered = cands.map(c => c.digest.sessionId); opts = o; return [] }
+  await runCommand(['send', 'csv', '-m', 'hi'], w.deps)
+  assert.deepEqual(offered, ['envoy-id', ...offered.slice(1)])
+  assert.deepEqual(offered.slice(1).sort(), ['csv-a', 'csv-b'])
+  assert.equal(opts?.preselect, false)
+  assert.equal(opts?.summaries?.get('envoy-id'), 'Haiku: about envoy-id')
+})
+
+test('send marks every row when Haiku only confirms sessions the query words match', async () => {
+  const w = world({ claude: haiku(['csv-b']) })
+  let opts: { preselect?: boolean, summaries?: Map<string, string> } | undefined
+  w.deps.pickMany = (_cands, o) => { opts = o; return [] }
+  await runCommand(['send', 'csv', '-m', 'hi'], w.deps)
+  assert.equal(opts?.preselect, true)
+  assert.equal(opts?.summaries?.get('csv-b'), 'about csv-b')
+})
+
+test('send falls back to local matches when Haiku fails', async () => {
+  const w = world({ claude: () => ({ status: 1, stdout: 'not logged in' }) })
+  let offered: string[] = []
+  w.deps.pickMany = cands => { offered = cands.map(c => c.digest.sessionId); return [] }
+  await runCommand(['send', 'csv', '-m', 'hi'], w.deps)
+  assert.deepEqual(offered.sort(), ['csv-a', 'csv-b'])
+  assert.match(w.err.join('\n'), /not logged in/)
+})
+
+test('send finds sessions through Haiku when no word matches locally', async () => {
+  const w = world({ claude: haiku(['csv-b']) })
+  let offered: string[] = []
+  w.deps.pickMany = cands => { offered = cands.map(c => c.digest.sessionId); return cands }
+  assert.equal(await runCommand(['send', 'spreadsheet', 'uploads', '-m', 'hi'], w.deps), 0)
+  assert.deepEqual(offered, ['csv-b'])
+})
+
+test('send never calls Haiku with --no-llm, --every, or no query', async () => {
+  for (const argv of [['send', 'csv', '--no-llm', '-m', 'hi'], ['send', 'csv', '--every', '-m', 'hi'], ['send', '-m', 'hi']]) {
+    const w = world({ claude: haiku(['envoy-id']) })
+    let opts: { preselect?: boolean } | undefined
+    w.deps.pickMany = (_c, o) => { opts = o; return [] }
+    await runCommand(argv, w.deps)
+    assert.ok(!w.calls.includes('claude'), argv.join(' '))
+    if (argv.length === 3) assert.notEqual(opts?.preselect, true)
+  }
+})
+
+test('send re-checks each chosen session after the picker and skips one now waiting on a prompt', async () => {
+  const w = world()
+  w.deps.pickMany = cands => {
+    writeFileSync(join(w.deps.dirs.sessions, '102.json'), JSON.stringify({ pid: 102, sessionId: 'csv-a', cwd: '/w/api-orders', status: 'waiting', entrypoint: 'cli' }))
+    return cands
+  }
+  assert.equal(await runCommand(['send', 'csv', '--no-llm', '-m', 'hi'], w.deps), 1)
+  assert.deepEqual(w.sent, [['pane-csv-b', 'hi']])
+  assert.match(w.err.join('\n'), /waiting on a prompt/)
+})
+
+test('send skips a chosen session that exited while the picker was open', async () => {
+  const w = world()
+  w.deps.pickMany = cands => { rmSync(join(w.deps.dirs.sessions, '102.json')); return cands }
+  assert.equal(await runCommand(['send', 'csv', '--no-llm', '-m', 'hi'], w.deps), 1)
+  assert.deepEqual(w.sent, [['pane-csv-b', 'hi']])
+  assert.match(w.err.join('\n'), /no longer running/)
+})
+
+test('send refuses a message that is empty once control characters are removed', async () => {
+  const w = world()
+  assert.equal(await runCommand(['send', '--every', '-m', '\x1b\x07'], w.deps), 2)
+  assert.deepEqual(w.sent, [])
+})
+
 test('send -m - says stdin was empty when it was', async () => {
   const w = world()
   w.deps.readStdin = () => ''
   assert.equal(await runCommand(['send', '--every', '-m', '-'], w.deps), 2)
   assert.match(w.err.join('\n'), /stdin was empty/)
+})
+
+test('send stops before Haiku and the picker when no supported terminal is found', async () => {
+  const w = world({ claude: haiku(['csv-a']) })
+  w.deps.resolveAdapter = () => undefined
+  let picked = false
+  w.deps.pickMany = () => { picked = true; return [] }
+  assert.equal(await runCommand(['send', 'csv', '-m', 'hi'], w.deps), 2)
+  assert.ok(!picked)
+  assert.ok(!w.calls.includes('claude'))
+  assert.match(w.err.join('\n'), /supported terminal/)
+})
+
+test('send keeps going when typing into one session fails', async () => {
+  const w = world()
+  const adapter = w.deps.resolveAdapter()!
+  w.deps.resolveAdapter = () => ({ ...adapter, sendText: (p, t) => { if (p.id === 'pane-csv-a') throw new Error('osascript died'); adapter.sendText(p, t) } })
+  assert.equal(await runCommand(['send', '--every', '-m', 'hi'], w.deps), 1)
+  assert.equal(w.sent.length, 2)
+  assert.match(w.err.join('\n'), /could not type into .*osascript died/)
+  assert.match(w.out.join('\n'), /Sent to 2 of 3 sessions\.$/)
+})
+
+test('send reports a mistyped choice instead of treating it as a cancel', async () => {
+  const w = world()
+  w.deps.pickMany = () => { throw new Error('invalid choice "1,x"') }
+  assert.equal(await runCommand(['send', '-m', 'hi'], w.deps), 2)
+  assert.match(w.err.join('\n'), /invalid choice/)
 })

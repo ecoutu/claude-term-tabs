@@ -53,14 +53,18 @@ export function pick (cands: Candidate[], summaries: Map<string, string>, exec: 
   return Number.isInteger(n) && n >= 1 && n <= cands.length ? cands[n - 1] : undefined
 }
 
+/** How `pickMany` shows its rows: a summary per session id, and whether fzf starts with every row marked. */
+export interface PickManyOptions { summaries?: Map<string, string>, preselect?: boolean }
+
 /** Let the user choose any number of candidates with fzf --multi, or a numbered list without it. Cancel chooses none; a mistyped list throws. */
-export function pickMany (cands: Candidate[], exec: Exec, io: PickerIo): Candidate[] {
+export function pickMany (cands: Candidate[], exec: Exec, io: PickerIo, opts: PickManyOptions = {}): Candidate[] {
   const now = Date.now()
-  const lines = cands.map(c => formatPickerLine(c, undefined, now))
+  const lines = cands.map(c => formatPickerLine(c, opts.summaries?.get(c.digest.sessionId), now))
   if (io.hasFzf) {
     const byId = new Map(cands.map(c => [c.digest.sessionId, c]))
+    const marked = opts.preselect === true ? ['--bind', 'load:select-all'] : []
     const acceptOnlyMarked = ['enter', 'double-click'].flatMap(key => ['--bind', `${key}:transform:${ACCEPT_WHEN_MARKED}`])
-    return runFzf(lines, cands, exec, ['--multi', '--header', MULTI_HEADER, ...acceptOnlyMarked]).flatMap(id => byId.get(id) ?? [])
+    return runFzf(lines, cands, exec, ['--multi', '--header', MULTI_HEADER, ...acceptOnlyMarked, ...marked]).flatMap(id => byId.get(id) ?? [])
   }
   const menu = lines.map((l, i) => `${String(i + 1).padStart(2)}) ${l.split('\t')[1]}`).join('\n')
   const answer = io.prompt(`${menu}\nPick sessions (numbers like 1,3, or all; Enter to cancel): `).trim()

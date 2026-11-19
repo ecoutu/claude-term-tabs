@@ -12,6 +12,13 @@ const SYSTEM_PROMPT = [
   'Return an empty list when none match.'
 ].join(' ')
 
+const SEND_SYSTEM_PROMPT = [
+  'You choose which coding sessions a message should be sent to, from a user\'s loose description of them.',
+  'Each session line is: id | repo | branch | title | last prompt.',
+  'Return every session the description applies to, not only the best one, each with a summary of at most 12 words.',
+  'Return an empty list when none apply.'
+].join(' ')
+
 const SCHEMA = JSON.stringify({
   type: 'object',
   properties: {
@@ -31,7 +38,7 @@ const SCHEMA = JSON.stringify({
 export interface LlmMatch { sessionId: string, summary: string }
 
 /** CLI args and stdin for a minimal, unsaved `claude -p` Haiku call. */
-export function buildHaikuArgs (query: string, cands: Candidate[]): { args: string[], input: string } {
+export function buildHaikuArgs (query: string, cands: Candidate[], systemPrompt: string = SYSTEM_PROMPT): { args: string[], input: string } {
   const args = [
     '-p',
     '--model', 'haiku',
@@ -41,7 +48,7 @@ export function buildHaikuArgs (query: string, cands: Candidate[]): { args: stri
     '--setting-sources', '',
     '--output-format', 'json',
     '--json-schema', SCHEMA,
-    '--system-prompt', SYSTEM_PROMPT
+    '--system-prompt', systemPrompt
   ]
   const lines = cands.slice(0, MAX_LLM_CANDIDATES).map(c => {
     const d = c.digest
@@ -66,15 +73,33 @@ export function parseHaikuRanking (stdout: string, knownIds: Set<string>): LlmMa
     const id = (m as LlmMatch)?.sessionId
     const summary = (m as LlmMatch)?.summary
     return typeof id === 'string' && knownIds.has(id) ? [{ sessionId: id, summary: typeof summary === 'string' ? summary : '' }] : []
-  })
+  }).filter((m, i, all) => all.findIndex(x => x.sessionId === m.sessionId) === i)
   if (matches.length > 0 && known.length === 0) throw new Error('Haiku returned only unknown session ids')
   return known
 }
 
 /** Ask Haiku to rank candidates. Returns undefined (after warning) when the call fails in any way. */
 export function askHaiku (query: string, cands: Candidate[], exec: Exec, warn: (m: string) => void): LlmMatch[] | undefined {
-  const sent = cands.slice(0, MAX_LLM_CANDIDATES)
-  const { args, input } = buildHaikuArgs(query, sent)
+  return callHaiku(query, cands.slice(0, MAX_LLM_CANDIDATES), SYSTEM_PROMPT, exec, warn)
+}
+
+/**
+ * Ask Haiku which candidates a description applies to, all of them, in batches of MAX_LLM_CANDIDATES so
+ * none is left out. Returns undefined (after warning) when any batch fails.
+ */
+export function askHaikuForEvery (query: string, cands: Candidate[], exec: Exec, warn: (m: string) => void): LlmMatch[] | undefined {
+  const batches = Array.from({ length: Math.ceil(cands.length / MAX_LLM_CANDIDATES) }, (_, i) => cands.slice(i * MAX_LLM_CANDIDATES, (i + 1) * MAX_LLM_CANDIDATES))
+  const found: LlmMatch[] = []
+  for (const batch of batches) {
+    const matches = callHaiku(query, batch, SEND_SYSTEM_PROMPT, exec, warn)
+    if (matches === undefined) return undefined
+    found.push(...matches)
+  }
+  return found
+}
+
+function callHaiku (query: string, sent: Candidate[], systemPrompt: string, exec: Exec, warn: (m: string) => void): LlmMatch[] | undefined {
+  const { args, input } = buildHaikuArgs(query, sent, systemPrompt)
   const r = exec('claude', args, input, { timeoutMs: HAIKU_TIMEOUT_MS })
   if (r.status === 124) {
     warn(`claude-term-tabs: Haiku call timed out after ${HAIKU_TIMEOUT_MS / 1000} s; using local ranking`)
