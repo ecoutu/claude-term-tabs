@@ -4,8 +4,9 @@ import { appendFileSync, mkdtempSync, readdirSync, readFileSync, statSync, write
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DEFAULT_RESUME_PROMPT } from '../src/config.ts'
-import { pauseSummary, sendStop, startPause, stragglerLines, tickPause, type PauseDeps } from '../src/pause/run.ts'
+import { pauseSummary, startPause, stragglerLines, tickPause, type PauseDeps } from '../src/pause/run.ts'
 import type { TerminalAdapter } from '../src/terminals/adapter.ts'
+import { typeInto } from '../src/type-into.ts'
 import type { Candidate, Pane, Status } from '../src/types.ts'
 
 const START = Date.parse('2026-11-10T20:00:00Z')
@@ -197,10 +198,10 @@ test('summary says safe to restart only when nothing is left', () => {
   assert.match(done.text, /Safe to restart\.$/)
 })
 
-test('sendStop refuses a session in shell mode', () => {
+test('typeInto refuses a session in shell mode', () => {
   const w = world([{ id: 'a', status: 'shell', alive: true, pane: true }])
   const c = w.deps.collect()[0]
-  assert.equal(sendStop(c, w.deps.adapter, 'STOP', w.deps.warn, w.deps.inFront), false)
+  assert.equal(typeInto(c, w.deps.adapter, 'STOP', w.deps.warn, w.deps.inFront), false)
   assert.ok(w.log.some(l => l.startsWith('warn') && l.includes('shell')))
   assert.ok(!w.log.some(l => l.startsWith('send')))
 })
@@ -227,7 +228,7 @@ test('a waiting session (permission prompt) is never typed into', () => {
   const run = w.start()
   assert.ok(!w.log.some(l => l.startsWith('send')))
   assert.equal(stateOf(run, 'a'), 'waiting-on-you')
-  assert.equal(sendStop(w.deps.collect()[0], w.deps.adapter, 'STOP', w.deps.warn, w.deps.inFront), false)
+  assert.equal(typeInto(w.deps.collect()[0], w.deps.adapter, 'STOP', w.deps.warn, w.deps.inFront), false)
 })
 
 test('the tab is left open when something other than the shell is in front after exit', () => {

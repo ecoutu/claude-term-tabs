@@ -9,9 +9,10 @@ import { liveWithPanes } from './discover.ts'
 import { inFrontOf, type Front } from './foreground.ts'
 import type { Candidate } from './types.ts'
 import { transcriptFor } from './live.ts'
-import { pauseSummary, sendStop, startPause, type PauseDeps } from './pause/run.ts'
+import { pauseSummary, startPause, type PauseDeps } from './pause/run.ts'
 import { runStragglerUi } from './pause/ui.ts'
 import { planResume, runResume } from './resume.ts'
+import { typeInto } from './type-into.ts'
 import { latestSnapshot, type Snapshot } from './snapshot.ts'
 
 const EXIT_OK = 0
@@ -133,7 +134,7 @@ function sendStopCommand (argv: string[], deps: Deps): number {
     deps.stderr(`claude-term-tabs: session ${id} is not running`)
     return EXIT_NONE
   }
-  return sendStop(c, adapter, loadConfig(deps.dirs.config).stopPrompt, deps.stderr, x => frontOf(deps, x)) ? EXIT_OK : EXIT_NONE
+  return typeInto(c, adapter, loadConfig(deps.dirs.config).stopPrompt, deps.stderr, x => frontOf(deps, x)) ? EXIT_OK : EXIT_NONE
 }
 
 function frontOf (deps: Deps, c: Candidate): Front {
