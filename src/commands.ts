@@ -95,16 +95,23 @@ function send (argv: string[], deps: Deps): number {
   const { values, positionals } = parseFlags(argv, SEND_FLAGS, { positionals: true })
   const text = values.message ?? ''
   if (typeableText(text).trim() === '') throw new Error('send needs a message: --message TEXT')
-  if (!values.every) throw new Error('send needs --every to type into every matching session')
+  if (!values.every && !deps.isTty) throw new Error('send needs --every when there is no terminal to choose sessions in')
   const adapter = deps.resolveAdapter()
   if (adapter === undefined) throw new Error('no supported terminal (iTerm2 or WezTerm) is running, so there is nothing to type into')
   const query = positionals.join(' ')
-  const targets = sendTargets(query, liveWithPanes(deps, adapter), deps.now())
-  if (targets.length === 0) {
+  const live = liveWithPanes(deps, adapter)
+  const matches = sendTargets(query, live, deps.now())
+  if (matches.length === 0) {
     deps.stdout(query === '' ? 'No open sessions.' : `No open session matches "${query}".`)
     return EXIT_NONE
   }
-  const summary = sendSummary(sendToEach(targets, text, { adapter, warn: deps.stderr, inFront: c => frontOf(deps, c) }))
+  const targets = values.every ? matches : deps.pickMany(matches)
+  if (targets.length === 0) {
+    deps.stdout('No sessions chosen.')
+    return EXIT_NONE
+  }
+  const current = values.every ? live : liveWithPanes(deps, adapter)
+  const summary = sendSummary(sendToEach(targets, current, text, { adapter, warn: deps.stderr, inFront: c => frontOf(deps, c) }))
   deps.stdout(summary.lines.join('\n'))
   return summary.exitCode
 }

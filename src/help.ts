@@ -35,7 +35,7 @@ ${flagLines(COMMANDS.pause.flags, { help: false })}
 ctt resume: ${COMMANDS.resume.describe}.
 ${flagLines(COMMANDS.resume.flags, { help: false })}
 
-ctt send: ${COMMANDS.send.describe}; a query narrows them to the sessions that match.
+ctt send: ${COMMANDS.send.describe}, chosen in a picker; a query narrows the list to the sessions that match.
 ${flagLines(COMMANDS.send.flags, { help: false })}
 
 ctt completion: ${COMMANDS.completion.describe}.

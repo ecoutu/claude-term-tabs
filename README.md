@@ -106,6 +106,26 @@ Sessions already running are skipped, so running it twice is harmless. Snapshots
 `~/.local/state/claude-term-tabs/snapshots/` and are pruned after 30 days. `ctt resume` uses the newest;
 `--snapshot FILE` picks another.
 
+## Send a message to several sessions
+
+```bash
+ctt send -m "commit what you have"            # pick sessions in a multi-select list
+ctt send api billing -m "rebase on main"      # the list holds only sessions matching "api billing"
+ctt send --every -m "/compact"                # every open session, no list
+ctt send api billing --every -m "run the tests"
+```
+
+The list is fzf with `--multi` (Tab marks a session, Enter sends to the marked ones and does nothing
+until one is marked), or a numbered list without fzf (`1,3` or `all`). The send picker needs fzf 0.46
+or later. Each chosen session is checked again just before typing, so one that moved to a permission
+prompt or exited while the list was open is skipped. It prints each session it typed into, then
+`Sent to N of M sessions.`
+
+ctt types into a session only when it is idle or busy and Claude is in front of its tab; Claude Code
+queues what is typed while it works. Sessions waiting on a prompt, in shell mode, or outside a
+supported terminal are skipped with a warning, and ctt exits 1. With no terminal, `--every` is
+required.
+
 ## Config
 
 `~/.config/claude-term-tabs/config.json`, every key optional:
@@ -191,3 +211,8 @@ Pause and resume:
 1. `ctt resume --dry-run` after a `ctt pause` lists every session in tab order.
 2. `ctt pause` with two scratch sessions shows them leaving the list as they write HANDOFFs.
 3. One full restart cycle: `ctt pause --auto-close`, restart, `ctt resume`.
+
+Send:
+
+1. `ctt send -m "say hi"` with three scratch sessions; mark two in fzf and only those two get it.
+2. `ctt send --every -m "say hi"` with one session in shell mode skips it and exits 1.

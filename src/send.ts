@@ -19,9 +19,20 @@ export function sendTargets (query: string, live: Candidate[], now: number): Can
   return tokenize(query).length === 0 ? live : rankLocal(query, live, now).map(r => r.cand)
 }
 
-/** Type `text` into each target that can safely take it; the others are skipped with a warning. */
-export function sendToEach (targets: Candidate[], text: string, deps: SendDeps): SendResult[] {
-  return targets.map(cand => ({ cand, sent: typeInto(cand, deps.adapter, text, deps.warn, deps.inFront) }))
+/**
+ * Type `text` into each target that can safely take it, judged by its state in `current` (the sessions running
+ * now) rather than when it was chosen. Targets no longer running, and the others refused, are skipped with a warning.
+ */
+export function sendToEach (targets: Candidate[], current: Candidate[], text: string, deps: SendDeps): SendResult[] {
+  const now = new Map(current.map(c => [c.digest.sessionId, c]))
+  return targets.map(cand => {
+    const latest = now.get(cand.digest.sessionId)
+    if (latest === undefined) {
+      deps.warn(`claude-term-tabs: ${cand.digest.title ?? cand.digest.sessionId} is no longer running; not typing into it`)
+      return { cand, sent: false }
+    }
+    return { cand: latest, sent: typeInto(latest, deps.adapter, text, deps.warn, deps.inFront) }
+  })
 }
 
 /** One line per session typed into, then the count; exit 0 only when every target got the message. */

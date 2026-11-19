@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { completionProgram, completionWarning, main, parseArgs, realDeps, run, runCommand, type Deps } from '../src/cli.ts'
@@ -70,6 +70,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     dirExists: p => !p.includes('gone'),
     resolveAdapter: () => adapter,
     pick: cands => cands.find(c => c.digest.sessionId === picked),
+    pickMany: () => [],
     isAlive: () => true,
     sleep: async () => {},
     self: ['node', 'ctt'],
@@ -714,4 +715,48 @@ test('send keeps going when typing into one session fails', async () => {
   assert.equal(w.sent.length, 2)
   assert.match(w.err.join('\n'), /could not type into .*osascript died/)
   assert.match(w.out.join('\n'), /Sent to 2 of 3 sessions\.$/)
+})
+
+test('send without --every offers the matching sessions and types into the ones chosen', async () => {
+  const w = world()
+  let offered: string[] = []
+  w.deps.pickMany = cands => { offered = cands.map(c => c.digest.sessionId); return cands.filter(c => c.digest.sessionId === 'csv-a') }
+  assert.equal(await runCommand(['send', 'csv', '-m', 'hi'], w.deps), 0)
+  assert.deepEqual(offered.sort(), ['csv-a', 'csv-b'])
+  assert.deepEqual(w.sent, [['pane-csv-a', 'hi']])
+  assert.match(w.out.join('\n'), /Sent to 1 of 1 session\.$/)
+})
+
+test('send sends nothing when the picker is cancelled', async () => {
+  const w = world()
+  w.deps.pickMany = () => []
+  assert.equal(await runCommand(['send', '-m', 'hi'], w.deps), 1)
+  assert.deepEqual(w.sent, [])
+  assert.match(w.out.join('\n'), /No sessions chosen\./)
+})
+
+test('send re-checks each chosen session after the picker and skips one now waiting on a prompt', async () => {
+  const w = world()
+  w.deps.pickMany = cands => {
+    writeFileSync(join(w.deps.dirs.sessions, '102.json'), JSON.stringify({ pid: 102, sessionId: 'csv-a', cwd: '/w/api-orders', status: 'waiting', entrypoint: 'cli' }))
+    return cands
+  }
+  assert.equal(await runCommand(['send', 'csv', '-m', 'hi'], w.deps), 1)
+  assert.deepEqual(w.sent, [['pane-csv-b', 'hi']])
+  assert.match(w.err.join('\n'), /waiting on a prompt/)
+})
+
+test('send skips a chosen session that exited while the picker was open', async () => {
+  const w = world()
+  w.deps.pickMany = cands => { rmSync(join(w.deps.dirs.sessions, '102.json')); return cands }
+  assert.equal(await runCommand(['send', 'csv', '-m', 'hi'], w.deps), 1)
+  assert.deepEqual(w.sent, [['pane-csv-b', 'hi']])
+  assert.match(w.err.join('\n'), /no longer running/)
+})
+
+test('send reports a mistyped choice instead of treating it as a cancel', async () => {
+  const w = world()
+  w.deps.pickMany = () => { throw new Error('invalid choice "1,x"') }
+  assert.equal(await runCommand(['send', '-m', 'hi'], w.deps), 2)
+  assert.match(w.err.join('\n'), /invalid choice/)
 })
