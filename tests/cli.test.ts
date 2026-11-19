@@ -579,8 +579,8 @@ test('ctt completion completes the shell names', async () => {
 })
 
 test('zsh completion describes every flag and subcommand in the words of --help', async () => {
-  const lines = [...await complete([''], '/bin/zsh'), ...await complete(['--'], '/bin/zsh'), ...await complete(['pause', '--'], '/bin/zsh'), ...await complete(['resume', '--'], '/bin/zsh')]
-  assert.equal(lines.length, 17, lines.join('\n'))
+  const lines = [...await complete([''], '/bin/zsh'), ...await complete(['--'], '/bin/zsh'), ...await complete(['pause', '--'], '/bin/zsh'), ...await complete(['resume', '--'], '/bin/zsh'), ...await complete(['send', '--'], '/bin/zsh')]
+  assert.equal(lines.length, 21, lines.join('\n'))
   for (const line of lines) {
     const desc = line.slice(line.indexOf(':') + 1)
     assert.ok(desc !== '' && HELP.includes(desc), `${line} not in --help`)
@@ -638,7 +638,80 @@ test('--help starts with usage lines built from the subcommand tables', () => {
   assert.ok(HELP.startsWith(`usage: ctt [query...] [options]
        ctt pause [--auto-close] [--timeout MIN]
        ctt resume [--dry-run] [--no-prompt] [--snapshot FILE]
+       ctt send [--message TEXT] [--every] [query...]
        ctt completion [bash|zsh]
 
 Find a Claude Code session`), HELP)
+})
+
+test('send --every types the message into every live session', async () => {
+  const w = world()
+  assert.equal(await runCommand(['send', '--every', '-m', 'commit what you have'], w.deps), 0)
+  assert.deepEqual(w.sent.map(x => x[0]).sort(), ['pane-csv-a', 'pane-csv-b', 'pane-envoy-id'])
+  assert.ok(w.sent.every(x => x[1] === 'commit what you have'))
+  assert.match(w.out.join('\n'), /Sent to 3 of 3 sessions\.$/)
+})
+
+test('send with a query types only into the sessions that match it', async () => {
+  const w = world()
+  assert.equal(await runCommand(['send', 'zephyrx', '--every', '--message', 'rebase'], w.deps), 0)
+  assert.deepEqual(w.sent, [['pane-csv-b', 'rebase']])
+  assert.match(w.out.join('\n'), /CSV ingestion merge-failed for zephyrx/)
+})
+
+test('send reports a query that matches no open session', async () => {
+  const w = world()
+  assert.equal(await runCommand(['send', 'nothing-like-this', '--every', '-m', 'hi'], w.deps), 1)
+  assert.deepEqual(w.sent, [])
+  assert.match(w.out.join('\n'), /No open session matches "nothing-like-this"/)
+})
+
+test('send exits 1 when a target cannot be typed into', async () => {
+  const w = world()
+  w.deps.exec = (cmd, args) => cmd === 'ps' && args[0] === '-t' && args[1] === 'ttys002'
+    ? { status: 0, stdout: ' 50 50 zsh\n', stderr: '' }
+    : (cmd === 'ps' && args[0] === '-t' ? { status: 0, stdout: ' 50 50 claude\n', stderr: '' } : w.deps.execTty(cmd, args))
+  assert.equal(await runCommand(['send', '--every', '-m', 'hi'], w.deps), 1)
+  assert.equal(w.sent.length, 2)
+  assert.match(w.out.join('\n'), /Sent to 2 of 3 sessions\.$/)
+  assert.match(w.err.join('\n'), /not in front/)
+})
+
+test('send needs a non-empty message', async () => {
+  const w = world()
+  assert.equal(await runCommand(['send', '--every'], w.deps), 2)
+  assert.equal(await runCommand(['send', '--every', '-m', '  '], w.deps), 2)
+  assert.match(w.err.join('\n'), /--message/)
+  assert.deepEqual(w.sent, [])
+})
+
+test('send without --every and without a terminal is a usage error', async () => {
+  const w = world()
+  w.deps.isTty = false
+  assert.equal(await runCommand(['send', '-m', 'hi'], w.deps), 2)
+  assert.match(w.err.join('\n'), /--every/)
+  assert.deepEqual(w.sent, [])
+})
+
+test('send refuses a message that is empty once control characters are removed', async () => {
+  const w = world()
+  assert.equal(await runCommand(['send', '--every', '-m', '\x1b\x07'], w.deps), 2)
+  assert.deepEqual(w.sent, [])
+})
+
+test('send stops when no supported terminal is found', async () => {
+  const w = world()
+  w.deps.resolveAdapter = () => undefined
+  assert.equal(await runCommand(['send', '--every', '-m', 'hi'], w.deps), 2)
+  assert.match(w.err.join('\n'), /supported terminal/)
+})
+
+test('send keeps going when typing into one session fails', async () => {
+  const w = world()
+  const adapter = w.deps.resolveAdapter()!
+  w.deps.resolveAdapter = () => ({ ...adapter, sendText: (p, t) => { if (p.id === 'pane-csv-a') throw new Error('osascript died'); adapter.sendText(p, t) } })
+  assert.equal(await runCommand(['send', '--every', '-m', 'hi'], w.deps), 1)
+  assert.equal(w.sent.length, 2)
+  assert.match(w.err.join('\n'), /could not type into .*osascript died/)
+  assert.match(w.out.join('\n'), /Sent to 2 of 3 sessions\.$/)
 })

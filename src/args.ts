@@ -45,6 +45,13 @@ export const RESUME_FLAGS = {
   help: HELP_FLAG
 } as const satisfies Flags
 
+/** Flags of `ctt send`. */
+export const SEND_FLAGS = {
+  message: { short: 'm', value: 'TEXT', describe: 'what to type into each session (required)' },
+  every: { describe: 'send to every open session the query matches, without asking' },
+  help: HELP_FLAG
+} as const satisfies Flags
+
 /** Shells `ctt completion` writes a script for. */
 export const SHELLS = ['bash', 'zsh'] as const
 export type Shell = typeof SHELLS[number]
@@ -57,6 +64,7 @@ export function isShell (s: string | undefined): s is Shell {
 export const COMMANDS = {
   pause: { describe: 'before a restart, record live sessions and ask each for a HANDOFF', flags: PAUSE_FLAGS },
   resume: { describe: 'after a restart, reopen recorded sessions in window and tab order', flags: RESUME_FLAGS },
+  send: { describe: 'type a message into open sessions', flags: SEND_FLAGS, args: '[query...]' },
   completion: { describe: `print the tab-completion script for ${SHELLS.join(' or ')} (default: from $SHELL)`, flags: { help: HELP_FLAG }, args: `[${SHELLS.join('|')}]` }
 } as const satisfies Readonly<Record<string, { describe: string, flags: Flags, args?: string }>>
 
