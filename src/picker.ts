@@ -6,6 +6,8 @@ import { shellQuote } from './shell.ts'
 
 const SEP = ' · '
 const FZF_CANCEL = new Set([1, 130])
+const ACCEPT_WHEN_MARKED = '[ "${FZF_SELECT_COUNT:-0}" -gt 0 ] && echo accept'
+const MULTI_HEADER = 'Tab marks a session, Enter sends to the marked ones'
 
 /** Interactive inputs for the picker. */
 export interface PickerIo { hasFzf: boolean, prompt: (question: string) => string }
@@ -44,25 +46,48 @@ export function pick (cands: Candidate[], summaries: Map<string, string>, exec: 
   const now = Date.now()
   const lines = cands.map(c => formatPickerLine(c, summaries.get(c.digest.sessionId), now))
   const byId = new Map(cands.map(c => [c.digest.sessionId, c]))
-  if (io.hasFzf) return byId.get(runFzf(lines, cands, exec) ?? '')
+  if (io.hasFzf) return byId.get(runFzf(lines, cands, exec)[0] ?? '')
   const menu = lines.map((l, i) => `${String(i + 1).padStart(2)}) ${l.split('\t')[1]}`).join('\n')
   const answer = io.prompt(`${menu}\nPick a session (number, Enter to cancel): `).trim()
   const n = Number(answer)
   return Number.isInteger(n) && n >= 1 && n <= cands.length ? cands[n - 1] : undefined
 }
 
-function runFzf (lines: string[], cands: Candidate[], exec: Exec): string | undefined {
+/** Let the user choose any number of candidates with fzf --multi, or a numbered list without it. Cancel chooses none; a mistyped list throws. */
+export function pickMany (cands: Candidate[], exec: Exec, io: PickerIo): Candidate[] {
+  const now = Date.now()
+  const lines = cands.map(c => formatPickerLine(c, undefined, now))
+  if (io.hasFzf) {
+    const byId = new Map(cands.map(c => [c.digest.sessionId, c]))
+    const acceptOnlyMarked = ['enter', 'double-click'].flatMap(key => ['--bind', `${key}:transform:${ACCEPT_WHEN_MARKED}`])
+    return runFzf(lines, cands, exec, ['--multi', '--header', MULTI_HEADER, ...acceptOnlyMarked]).flatMap(id => byId.get(id) ?? [])
+  }
+  const menu = lines.map((l, i) => `${String(i + 1).padStart(2)}) ${l.split('\t')[1]}`).join('\n')
+  const answer = io.prompt(`${menu}\nPick sessions (numbers like 1,3, or all; Enter to cancel): `).trim()
+  return chosenByNumber(answer, cands)
+}
+
+function chosenByNumber (answer: string, cands: Candidate[]): Candidate[] {
+  if (answer.toLowerCase() === 'all') return cands
+  const numbers = answer.split(/[\s,]+/).filter(Boolean).map(Number)
+  const valid = numbers.every(n => Number.isInteger(n) && n >= 1 && n <= cands.length)
+  if (!valid) throw new Error(`invalid choice "${answer}": use numbers 1-${cands.length} separated by commas, or all`)
+  return [...new Set(numbers)].map(n => cands[n - 1])
+}
+
+function runFzf (lines: string[], cands: Candidate[], exec: Exec, extraArgs: string[] = []): string[] {
   const previewDir = mkdtempSync(join(tmpdir(), 'claude-term-tabs-'))
   try {
     for (const c of cands) writeFileSync(join(previewDir, c.digest.sessionId), previewText(c.digest), { mode: 0o600 })
     const r = exec('fzf', [
       '--delimiter', '\t', '--with-nth', '2..', '--no-sort', '--height', '60%', '--reverse',
+      ...extraArgs,
       '--prompt', 'session> ',
       '--preview', `cat ${shellQuote(previewDir)}/{1}`, '--preview-window', 'down,6,wrap'
     ], lines.join('\n'))
-    if (FZF_CANCEL.has(r.status)) return undefined
+    if (FZF_CANCEL.has(r.status)) return []
     if (r.status !== 0) throw new Error(`fzf failed (${r.status}): ${r.stderr.trim()}`)
-    return parsePickerSelection(r.stdout)
+    return r.stdout.split('\n').filter(line => line.trim() !== '').map(parsePickerSelection)
   } finally {
     rmSync(previewDir, { recursive: true, force: true })
   }

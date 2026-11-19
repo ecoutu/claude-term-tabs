@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
-import { formatAge, formatPickerLine, parsePickerSelection, pick } from '../src/picker.ts'
+import { formatAge, formatPickerLine, parsePickerSelection, pick, pickMany } from '../src/picker.ts'
 import type { Candidate, Exec } from '../src/types.ts'
 
 const NOW = 1_800_000_000_000
@@ -73,4 +73,55 @@ test('preview command quotes a temp path containing spaces', () => {
   const exec: Exec = (_c, args) => { previewCmd = args[args.indexOf('--preview') + 1]; return { status: 130, stdout: '', stderr: '' } }
   pick([cand('S1')], new Map(), exec, { hasFzf: true, prompt: () => '' })
   assert.match(previewCmd, /^cat '[^']+'\/\{1\}$/)
+})
+
+test('multi-select fzf returns every chosen candidate', () => {
+  const cands = [cand('S1'), cand('S2'), cand('S3')]
+  let args: string[] = []
+  const exec: Exec = (_cmd, a, input) => {
+    args = a
+    const lines = (input ?? '').split('\n')
+    return { status: 0, stdout: `${lines[0]}\n${lines[2]}\n`, stderr: '' }
+  }
+  assert.deepEqual(pickMany(cands, exec, { hasFzf: true, prompt: () => '' }).map(c => c.digest.sessionId), ['S1', 'S3'])
+  assert.ok(args.includes('--multi'))
+})
+
+test('multi-select fzf escape chooses nothing', () => {
+  const exec: Exec = () => ({ status: 130, stdout: '', stderr: '' })
+  assert.deepEqual(pickMany([cand('S1')], exec, { hasFzf: true, prompt: () => '' }), [])
+})
+
+test('numbered multi-select takes a list, all, or nothing', () => {
+  const cands = [cand('S1'), cand('S2'), cand('S3')]
+  const exec: Exec = () => { throw new Error('no exec expected') }
+  const ids = (answer: string) => pickMany(cands, exec, { hasFzf: false, prompt: () => answer }).map(c => c.digest.sessionId)
+  assert.deepEqual(ids('1,3'), ['S1', 'S3'])
+  assert.deepEqual(ids(' 2 3 '), ['S2', 'S3'])
+  assert.deepEqual(ids('all'), ['S1', 'S2', 'S3'])
+  assert.deepEqual(ids(''), [])
+})
+
+test('numbered multi-select rejects a number out of range or a word it does not know', () => {
+  const cands = [cand('S1'), cand('S2')]
+  const exec: Exec = () => { throw new Error('no exec expected') }
+  assert.throws(() => pickMany(cands, exec, { hasFzf: false, prompt: () => '1,9' }), /invalid choice "1,9".*1-2/)
+  assert.throws(() => pickMany(cands, exec, { hasFzf: false, prompt: () => '1,x' }), /invalid choice/)
+})
+
+test('numbered multi-select chooses a session once even when its number repeats', () => {
+  const cands = [cand('S1'), cand('S2')]
+  const exec: Exec = () => { throw new Error('no exec expected') }
+  assert.deepEqual(pickMany(cands, exec, { hasFzf: false, prompt: () => '2,1,2' }).map(c => c.digest.sessionId), ['S2', 'S1'])
+})
+
+test('multi-select fzf ignores Enter and double-click until a row is marked', () => {
+  let args: string[] = []
+  const exec: Exec = (_cmd, a) => { args = a; return { status: 130, stdout: '', stderr: '' } }
+  pickMany([cand('S1')], exec, { hasFzf: true, prompt: () => '' })
+  const binds = args.flatMap((a, i) => args[i - 1] === '--bind' ? [a] : [])
+  for (const key of ['enter', 'double-click']) {
+    assert.ok(binds.includes(`${key}:transform:[ "\${FZF_SELECT_COUNT:-0}" -gt 0 ] && echo accept`), binds.join(' | '))
+  }
+  assert.equal(args[args.indexOf('--header') + 1], 'Tab marks a session, Enter sends to the marked ones')
 })
