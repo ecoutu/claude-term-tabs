@@ -1,5 +1,6 @@
 import type { Config } from '../config.ts'
 import type { Front } from '../foreground.ts'
+import { TYPEABLE, typeInto } from '../type-into.ts'
 import { hasHandoff, latestAssistantAfterPrompt } from '../handoff.ts'
 import { cleanField, formatAge } from '../picker.ts'
 import { pruneSnapshots, saveSnapshot, snapshotFrom, type Snapshot } from '../snapshot.ts'
@@ -12,7 +13,6 @@ export const EXIT_GRACE_MS = 10_000
 const SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const EXIT_COMMAND = '/exit'
 const PROMPT_START_CHARS = 60
-const TYPEABLE: ReadonlySet<string> = new Set(['idle', 'busy'])
 
 const LABELS: Readonly<Record<PauseState, string>> = {
   done: 'done',
@@ -65,7 +65,7 @@ export function startPause (deps: PauseDeps, opts: { autoClose: boolean }): Paus
   deps.onSnapshot?.(saveSnapshot(deps.snapshotDir, snapshot))
   const tracked = cands.map(cand => {
     const typeable = TYPEABLE.has(cand.status)
-    const sent = typeable && sendStop(cand, deps.adapter, deps.config.stopPrompt, deps.warn, deps.inFront)
+    const sent = typeable && typeInto(cand, deps.adapter, deps.config.stopPrompt, deps.warn, deps.inFront)
     const size = safeSize(deps, deps.transcriptOf(cand))
     const classified = classify({ alive: true, status: cand.status, hasPane: canType(cand, deps.adapter), handoff: false, msSinceGrowth: 0 })
     const state: PauseState = typeable && !sent ? 'cant-reach' : classified
@@ -85,34 +85,6 @@ export function tickPause (run: PauseRun, deps: PauseDeps): PauseRun {
   const snapshot = { ...run.snapshot, sessions: run.snapshot.sessions.map(s => ({ ...s, handoffWritten: doneIds.has(s.sessionId) })) }
   deps.onSnapshot?.(saveSnapshot(deps.snapshotDir, snapshot))
   return { ...run, snapshot, tracked }
-}
-
-/** Type the stop prompt into one session. Refuses (and warns) unless it is idle or busy, reachable, and Claude is in front. */
-export function sendStop (cand: Candidate, adapter: TerminalAdapter | undefined, prompt: string, warn: (m: string) => void, inFront: (c: Candidate) => Front): boolean {
-  const name = cand.digest.title ?? cand.digest.sessionId
-  if (cand.status === 'shell') {
-    warn(`claude-term-tabs: ${name} is in shell mode; not typing into it`)
-    return false
-  }
-  if (!TYPEABLE.has(cand.status)) {
-    warn(`claude-term-tabs: ${name} is ${cand.status === 'waiting' ? 'waiting on a prompt' : `in status ${cand.status}`}; not typing into it`)
-    return false
-  }
-  if (adapter === undefined || cand.pane === undefined) {
-    warn(`claude-term-tabs: ${name} is not in a supported terminal pane`)
-    return false
-  }
-  if (inFront(cand) !== 'claude') {
-    warn(`claude-term-tabs: Claude is not in front of the tab for ${name}; not typing into it`)
-    return false
-  }
-  try {
-    adapter.sendText(cand.pane, prompt)
-    return true
-  } catch (err) {
-    warn(`claude-term-tabs: could not type into ${name}: ${(err as Error).message}`)
-    return false
-  }
 }
 
 /** Picker-style lines for sessions still in a straggler state. */
