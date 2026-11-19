@@ -45,8 +45,8 @@ const wpane: Pane = { id: '22', tty: '/dev/ttys004', title: '', windowId: '3', w
 test('sendText pastes the text, then submits with a bare carriage return', () => {
   const { exec, calls } = recorder()
   weztermAdapter(exec, '/bin/zsh').sendText(wpane, 'hi "there"\nline 2')
-  assert.deepEqual(calls[0].args, ['cli', 'send-text', '--pane-id', '22', 'hi "there"\nline 2'])
-  assert.deepEqual(calls[1].args, ['cli', 'send-text', '--pane-id', '22', '--no-paste', '\r'])
+  assert.deepEqual(calls[0].args, ['cli', 'send-text', '--pane-id', '22', '--', 'hi "there"\nline 2'])
+  assert.deepEqual(calls[1].args, ['cli', 'send-text', '--pane-id', '22', '--no-paste', '--', '\r'])
 })
 
 test('closePane kills the pane', () => {

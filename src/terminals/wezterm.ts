@@ -18,8 +18,8 @@ export function weztermAdapter (exec: Exec, shell: string = process.env.SHELL ??
     listPanes: () => toPanes(list()),
     focus: (pane) => { cli(['activate-pane', '--pane-id', pane.id]) },
     sendText: (pane, text) => {
-      cli(['send-text', '--pane-id', pane.id, text])
-      cli(['send-text', '--pane-id', pane.id, '--no-paste', '\r'])
+      cli(['send-text', '--pane-id', pane.id, '--', text])
+      cli(['send-text', '--pane-id', pane.id, '--no-paste', '--', '\r'])
     },
     closePane: (pane) => { cli(['kill-pane', '--pane-id', pane.id]) },
     openPane: (cwd, command, opts) => {
