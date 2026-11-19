@@ -1,4 +1,5 @@
 import type { Front } from './foreground.ts'
+import type { LlmMatch } from './llm.ts'
 import { rankLocal, tokenize } from './score.ts'
 import type { TerminalAdapter } from './terminals/adapter.ts'
 import { typeInto } from './type-into.ts'
@@ -17,6 +18,22 @@ export interface SendResult { cand: Candidate, sent: boolean }
 /** Live sessions a query picks, best match first; a query with no real words picks them all. */
 export function sendTargets (query: string, live: Candidate[], now: number): Candidate[] {
   return tokenize(query).length === 0 ? live : rankLocal(query, live, now).map(r => r.cand)
+}
+
+/**
+ * The sessions a send offers: Haiku's matches first, then local ones. A session only Haiku chose is labelled
+ * "Haiku:", and rows start marked only when a query narrowed the list and every row matched its words.
+ */
+export function sendChoices (live: Candidate[], local: Candidate[], haiku: LlmMatch[] | undefined, narrowed: boolean): { cands: Candidate[], summaries: Map<string, string>, preselect: boolean } {
+  const byId = new Map(live.map(c => [c.digest.sessionId, c]))
+  const localIds = new Set(local.map(c => c.digest.sessionId))
+  const fromHaiku = (haiku ?? []).flatMap(m => byId.get(m.sessionId) ?? [])
+  const seen = new Set(fromHaiku.map(c => c.digest.sessionId))
+  return {
+    cands: [...fromHaiku, ...local.filter(c => !seen.has(c.digest.sessionId))],
+    summaries: new Map((haiku ?? []).map(m => [m.sessionId, localIds.has(m.sessionId) ? m.summary : `Haiku: ${m.summary}`])),
+    preselect: narrowed && fromHaiku.every(c => localIds.has(c.digest.sessionId))
+  }
 }
 
 /**

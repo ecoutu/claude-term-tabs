@@ -12,7 +12,9 @@ import { transcriptFor } from './live.ts'
 import { pauseSummary, startPause, type PauseDeps } from './pause/run.ts'
 import { runStragglerUi } from './pause/ui.ts'
 import { planResume, runResume } from './resume.ts'
-import { sendSummary, sendTargets, sendToEach } from './send.ts'
+import { askHaikuForEvery } from './llm.ts'
+import { tokenize } from './score.ts'
+import { sendChoices, sendSummary, sendTargets, sendToEach } from './send.ts'
 import { typeableText, typeInto } from './type-into.ts'
 import { latestSnapshot, type Snapshot } from './snapshot.ts'
 
@@ -99,12 +101,14 @@ function send (argv: string[], deps: Deps): number {
   if (adapter === undefined) throw new Error('no supported terminal (iTerm2 or WezTerm) is running, so there is nothing to type into')
   const query = positionals.join(' ')
   const live = liveWithPanes(deps, adapter)
-  const matches = sendTargets(query, live, deps.now())
-  if (matches.length === 0) {
+  const narrowed = tokenize(query).length > 0
+  const haiku = !values.every && narrowed && !values['no-llm'] ? askHaikuForEvery(query, live, deps.exec, deps.stderr) : undefined
+  const choices = sendChoices(live, sendTargets(query, live, deps.now()), haiku, narrowed)
+  if (choices.cands.length === 0) {
     deps.stdout(query === '' ? 'No open sessions.' : `No open session matches "${query}".`)
     return EXIT_NONE
   }
-  const targets = values.every ? matches : deps.pickMany(matches)
+  const targets = values.every ? choices.cands : deps.pickMany(choices.cands, { summaries: choices.summaries, preselect: choices.preselect })
   if (targets.length === 0) {
     deps.stdout('No sessions chosen.')
     return EXIT_NONE

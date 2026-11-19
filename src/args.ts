@@ -49,6 +49,7 @@ export const RESUME_FLAGS = {
 export const SEND_FLAGS = {
   message: { short: 'm', value: 'TEXT', describe: 'what to type into each session (required; - reads it from stdin)' },
   every: { describe: 'send to every open session the query matches instead of choosing in a picker' },
+  'no-llm': { describe: 'local matching only, never ask Haiku which sessions the query means' },
   help: HELP_FLAG
 } as const satisfies Flags
 

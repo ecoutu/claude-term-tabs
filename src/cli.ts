@@ -11,7 +11,7 @@ import { collectLiveSessions } from './live.ts'
 import { askHaiku, MAX_LLM_CANDIDATES } from './llm.ts'
 import { lineWriter } from './output.ts'
 import { defaultDirs } from './paths.ts'
-import { formatPickerLine, pick as realPick, pickMany as realPickMany } from './picker.ts'
+import { formatPickerLine, pick as realPick, pickMany as realPickMany, type PickManyOptions } from './picker.ts'
 import { clearWinner, rankLocal, tokenize } from './score.ts'
 import { detectAdapter, isWindowTarget, WINDOW_TARGETS, type TerminalAdapter, type WindowTarget } from './terminals/adapter.ts'
 import { runCommand } from './commands.ts'
@@ -53,7 +53,7 @@ export interface Deps {
   resolveAdapter: (override?: string) => TerminalAdapter | undefined
   pick: (cands: Candidate[], summaries: Map<string, string>) => Candidate | undefined
   /** Let the user choose any number of candidates; none when cancelled. */
-  pickMany: (cands: Candidate[]) => Candidate[]
+  pickMany: (cands: Candidate[], opts?: PickManyOptions) => Candidate[]
   /** All of stdin as text; throws when stdin is a terminal. */
   readStdin: () => string
   isAlive: (pid: number) => boolean
@@ -296,7 +296,7 @@ export function realDeps (exec: Exec = realExec, installed = false): Deps {
     dirExists: realDirExists,
     resolveAdapter: override => detectAdapter(process.env, exec, override),
     pick: (cands, summaries) => realPick(cands, summaries, realExecTty, { hasFzf: deps.hasFzf, prompt: promptTty }),
-    pickMany: cands => realPickMany(cands, realExecTty, { hasFzf: deps.hasFzf, prompt: promptTty }),
+    pickMany: (cands, opts) => realPickMany(cands, realExecTty, { hasFzf: deps.hasFzf, prompt: promptTty }, opts),
     readStdin: () => {
       if (isatty(0)) throw new Error('-m - reads the message from stdin; pipe it in, e.g. echo hi | ctt send -m -')
       return readFileSync(0, 'utf8')
