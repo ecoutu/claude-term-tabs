@@ -35,6 +35,9 @@ ${flagLines(COMMANDS.pause.flags, { help: false })}
 ctt resume: ${COMMANDS.resume.describe}.
 ${flagLines(COMMANDS.resume.flags, { help: false })}
 
+ctt send: ${COMMANDS.send.describe}; a query narrows them to the sessions that match.
+${flagLines(COMMANDS.send.flags, { help: false })}
+
 ctt completion: ${COMMANDS.completion.describe}.
   ctt completion zsh >> ~/.zshrc, or ctt completion bash >> ~/.bashrc (bash 4 or later)
 

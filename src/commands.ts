@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
-import { COMMANDS, completionScript, isCommand, isShell, PAUSE_FLAGS, parseFlags, RESUME_FLAGS, SHELLS } from './args.ts'
+import { COMMANDS, completionScript, isCommand, isShell, PAUSE_FLAGS, parseFlags, RESUME_FLAGS, SEND_FLAGS, SHELLS } from './args.ts'
 import { answerCompletion, COMPLETE_FLAG } from './complete.ts'
 import type { Deps } from './cli.ts'
 import { loadConfig } from './config.ts'
@@ -12,7 +12,8 @@ import { transcriptFor } from './live.ts'
 import { pauseSummary, startPause, type PauseDeps } from './pause/run.ts'
 import { runStragglerUi } from './pause/ui.ts'
 import { planResume, runResume } from './resume.ts'
-import { typeInto } from './type-into.ts'
+import { sendSummary, sendTargets, sendToEach } from './send.ts'
+import { typeableText, typeInto } from './type-into.ts'
 import { latestSnapshot, type Snapshot } from './snapshot.ts'
 
 const EXIT_OK = 0
@@ -27,6 +28,7 @@ export async function runCommand (argv: string[], deps: Deps): Promise<number | 
     switch (name) {
       case 'pause': return await pause(rest, deps)
       case 'resume': return resume(rest, deps)
+      case 'send': return send(rest, deps)
       case 'completion': return completion(rest, deps)
       case COMPLETE_FLAG: return answerCompletion(rest, deps)
       case '_focus': return focus(rest, deps)
@@ -87,6 +89,24 @@ function resume (argv: string[], deps: Deps): number {
   const steps = planResume(snap, liveIds, deps.dirExists, config, { noPrompt: values['no-prompt'] })
   deps.stdout(`Snapshot ${snap.createdAt}: ${steps.length} sessions`)
   return runResume(steps, adapter, { dryRun: values['dry-run'] }, deps.stdout)
+}
+
+function send (argv: string[], deps: Deps): number {
+  const { values, positionals } = parseFlags(argv, SEND_FLAGS, { positionals: true })
+  const text = values.message ?? ''
+  if (typeableText(text).trim() === '') throw new Error('send needs a message: --message TEXT')
+  if (!values.every) throw new Error('send needs --every to type into every matching session')
+  const adapter = deps.resolveAdapter()
+  if (adapter === undefined) throw new Error('no supported terminal (iTerm2 or WezTerm) is running, so there is nothing to type into')
+  const query = positionals.join(' ')
+  const targets = sendTargets(query, liveWithPanes(deps, adapter), deps.now())
+  if (targets.length === 0) {
+    deps.stdout(query === '' ? 'No open sessions.' : `No open session matches "${query}".`)
+    return EXIT_NONE
+  }
+  const summary = sendSummary(sendToEach(targets, text, { adapter, warn: deps.stderr, inFront: c => frontOf(deps, c) }))
+  deps.stdout(summary.lines.join('\n'))
+  return summary.exitCode
 }
 
 function showHelp (deps: Deps): number {
