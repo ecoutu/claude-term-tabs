@@ -93,8 +93,7 @@ function resume (argv: string[], deps: Deps): number {
 
 function send (argv: string[], deps: Deps): number {
   const { values, positionals } = parseFlags(argv, SEND_FLAGS, { positionals: true })
-  const text = values.message ?? ''
-  if (typeableText(text).trim() === '') throw new Error('send needs a message: --message TEXT')
+  const text = messageText(values.message, deps)
   if (!values.every && !deps.isTty) throw new Error('send needs --every when there is no terminal to choose sessions in')
   const adapter = deps.resolveAdapter()
   if (adapter === undefined) throw new Error('no supported terminal (iTerm2 or WezTerm) is running, so there is nothing to type into')
@@ -114,6 +113,16 @@ function send (argv: string[], deps: Deps): number {
   const summary = sendSummary(sendToEach(targets, current, text, { adapter, warn: deps.stderr, inFront: c => frontOf(deps, c) }))
   deps.stdout(summary.lines.join('\n'))
   return summary.exitCode
+}
+
+function messageText (message: string | undefined, deps: Deps): string {
+  if (message === '-') {
+    const piped = deps.readStdin()
+    if (typeableText(piped).trim() === '') throw new Error('stdin was empty; pipe the --message text in')
+    return piped.replace(/\r?\n$/, '')
+  }
+  if (typeableText(message ?? '').trim() === '') throw new Error('send needs a message: --message TEXT')
+  return message ?? ''
 }
 
 function showHelp (deps: Deps): number {

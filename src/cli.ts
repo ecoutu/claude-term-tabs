@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { accessSync, closeSync, constants, openSync, readSync, statSync } from 'node:fs'
+import { accessSync, closeSync, constants, openSync, readFileSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { isatty } from 'node:tty'
 import { parseFlags, SEARCH_FLAGS } from './args.ts'
@@ -54,6 +54,8 @@ export interface Deps {
   pick: (cands: Candidate[], summaries: Map<string, string>) => Candidate | undefined
   /** Let the user choose any number of candidates; none when cancelled. */
   pickMany: (cands: Candidate[]) => Candidate[]
+  /** All of stdin as text; throws when stdin is a terminal. */
+  readStdin: () => string
   isAlive: (pid: number) => boolean
   sleep: (ms: number) => Promise<void>
   self: string[]
@@ -295,6 +297,10 @@ export function realDeps (exec: Exec = realExec, installed = false): Deps {
     resolveAdapter: override => detectAdapter(process.env, exec, override),
     pick: (cands, summaries) => realPick(cands, summaries, realExecTty, { hasFzf: deps.hasFzf, prompt: promptTty }),
     pickMany: cands => realPickMany(cands, realExecTty, { hasFzf: deps.hasFzf, prompt: promptTty }),
+    readStdin: () => {
+      if (isatty(0)) throw new Error('-m - reads the message from stdin; pipe it in, e.g. echo hi | ctt send -m -')
+      return readFileSync(0, 'utf8')
+    },
     isAlive: pid => {
       try {
         process.kill(pid, 0)

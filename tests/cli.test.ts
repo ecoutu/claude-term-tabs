@@ -71,6 +71,7 @@ function world (opts: { windows?: number, claude?: (input: string) => { status: 
     resolveAdapter: () => adapter,
     pick: cands => cands.find(c => c.digest.sessionId === picked),
     pickMany: () => [],
+    readStdin: () => '',
     isAlive: () => true,
     sleep: async () => {},
     self: ['node', 'ctt'],
@@ -759,4 +760,26 @@ test('send reports a mistyped choice instead of treating it as a cancel', async 
   w.deps.pickMany = () => { throw new Error('invalid choice "1,x"') }
   assert.equal(await runCommand(['send', '-m', 'hi'], w.deps), 2)
   assert.match(w.err.join('\n'), /invalid choice/)
+})
+
+test('send -m - reads the message from stdin, without its trailing newline', async () => {
+  const w = world()
+  w.deps.readStdin = () => 'first line\nsecond line\n'
+  assert.equal(await runCommand(['send', 'zephyrx', '--every', '-m', '-'], w.deps), 0)
+  assert.deepEqual(w.sent, [['pane-csv-b', 'first line\nsecond line']])
+})
+
+test('send -m - with nothing on stdin is a usage error', async () => {
+  const w = world()
+  w.deps.readStdin = () => '\n'
+  assert.equal(await runCommand(['send', '--every', '-m', '-'], w.deps), 2)
+  assert.deepEqual(w.sent, [])
+  assert.match(w.err.join('\n'), /--message/)
+})
+
+test('send -m - says stdin was empty when it was', async () => {
+  const w = world()
+  w.deps.readStdin = () => ''
+  assert.equal(await runCommand(['send', '--every', '-m', '-'], w.deps), 2)
+  assert.match(w.err.join('\n'), /stdin was empty/)
 })

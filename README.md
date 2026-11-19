@@ -113,6 +113,7 @@ ctt send -m "commit what you have"            # pick sessions in a multi-select 
 ctt send api billing -m "rebase on main"      # the list holds only sessions matching "api billing"
 ctt send --every -m "/compact"                # every open session, no list
 ctt send api billing --every -m "run the tests"
+pbpaste | ctt send -m -                     # read a multi-line message from stdin
 ```
 
 The list is fzf with `--multi` (Tab marks a session, Enter sends to the marked ones and does nothing
