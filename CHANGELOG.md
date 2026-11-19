@@ -1,3 +1,17 @@
+## [2.3.0](https://github.com/ecoutu/claude-term-tabs/compare/v2.2.0...v2.3.0) (2026-11-19)
+
+### Features
+
+* **send:** choose which sessions get the message in a multi-select picker ([7e27d31](https://github.com/ecoutu/claude-term-tabs/commit/7e27d31e2a7f400b849fee59682d7d95131647d4))
+* **send:** read the message from stdin with -m - ([aa90e5c](https://github.com/ecoutu/claude-term-tabs/commit/aa90e5c0f4afc13d60653257388632422e17545f))
+* **send:** suggest sessions with Haiku in the send picker ([34b47f1](https://github.com/ecoutu/claude-term-tabs/commit/34b47f1e75e60a9e811888c74df5c12440844dbb))
+* **send:** type a message into every open session with ctt send --every ([e88f93a](https://github.com/ecoutu/claude-term-tabs/commit/e88f93a3fc9ec2162914d9b15ec07ab1591bc7e6))
+
+### Bug Fixes
+
+* strip control characters from text typed into a session ([67f2173](https://github.com/ecoutu/claude-term-tabs/commit/67f2173226ff9593ca6024b14f684a8d3fb63e13))
+* **wezterm:** type text that starts with a dash instead of reading it as an option ([6b7facb](https://github.com/ecoutu/claude-term-tabs/commit/6b7facb16041a59a12d14c76e42219cb14ed4cef))
+
 ## [2.2.0](https://github.com/ecoutu/claude-term-tabs/compare/v2.1.4...v2.2.0) (2026-11-18)
 
 ### Features
