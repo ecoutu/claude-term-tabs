@@ -166,12 +166,9 @@ export function completionScript (shell: Shell, program: string): string {
 #
 _ctt_completions()
 {
-  local reply
-  local si=$IFS
-  IFS=$'\\n' reply=($(${ctt} "\${words[@]:0:$CURRENT}"))
-  IFS=$si
-  if [[ \${#reply} -gt 0 ]]; then
-    _describe 'values' reply
+  local -a ctt_offered=(\${(f)"$(${ctt} "\${words[@]:0:$CURRENT}")"})
+  if [[ \${#ctt_offered} -gt 0 ]]; then
+    _describe 'values' ctt_offered
   else
     # nothing to offer: complete file names, after the = of --flag=value
     [[ $PREFIX == --*=* ]] && compset -P '*='
