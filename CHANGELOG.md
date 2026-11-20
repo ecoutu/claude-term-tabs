@@ -1,3 +1,9 @@
+## [2.3.1](https://github.com/ecoutu/claude-term-tabs/compare/v2.3.0...v2.3.1) (2026-11-20)
+
+### Bug Fixes
+
+* **completion:** keep zsh completions working with zsh-autocomplete and after an interrupted Tab ([7a8c7ee](https://github.com/ecoutu/claude-term-tabs/commit/7a8c7ee933b5edd91c1b1c53ba1ff2acd4eaebf9))
+
 ## [2.3.0](https://github.com/ecoutu/claude-term-tabs/compare/v2.2.0...v2.3.0) (2026-11-19)
 
 ### Features
